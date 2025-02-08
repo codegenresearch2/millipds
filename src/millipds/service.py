@@ -66,7 +66,7 @@ async def hello(request: web.Request):
  ,8" "8P" "8P" "8,
  I8   8I   8I   8I   88   I8dP   I8dP    88   I8'    ,8i  i8'    ,8I  ,8'  Yb
 ,dP   8I   8I   Yb,_,88,_,d8b,_ ,d8b,_ _,88,_,I8 _  ,d8' ,d8,   ,d8b,,8'_   8)
-8P'   8I   8I   `Y88P""Y88P'"Y888P'""Y8PI8 YY88888PP'"Y8888P'""Y8P' "YY8P8P
+8P'   8I   8I   `Y88P"Y88P'"Y888P'""Y8PI8 YY88888PP'"Y8888P'""Y8P' "YY8P8P
 
 
 Hello! This is an ATProto PDS instance, running millipds v{version}
