@@ -53,15 +53,32 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
         )
     }
 
-    async with get_client(request).get(
-        service_route + request.path,
-        params=request.query,
-        headers=auth_headers,
-    ) as r:
-        body_bytes = await r.read()
-        logger.info(f'Proxied lxm: {lxm}')
-        return web.Response(
-            body=body_bytes,
-            content_type=r.content_type,
-            status=r.status,
-        )
+    if request.method == 'GET':
+        async with get_client(request).get(
+            service_route + request.path,
+            params=request.query,
+            headers=auth_headers,
+        ) as r:
+            body_bytes = await r.read()
+            logger.info(f'Proxied lxm: {lxm}')  # More descriptive logging
+            return web.Response(
+                body=body_bytes,
+                content_type=r.content_type,
+                status=r.status,
+            )
+    elif request.method == 'POST':
+        request_body = await request.read()
+        async with get_client(request).post(
+            service_route + request.path,
+            data=request_body,
+            headers=(auth_headers | {'Content-Type': request.content_type}),
+        ) as r:
+            body_bytes = await r.read()
+            logger.info(f'Proxied lxm: {lxm}')  # More descriptive logging
+            return web.Response(
+                body=body_bytes,
+                content_type=r.content_type,
+                status=r.status,
+            )
+    else:
+        return web.HTTPMethodNotAllowed(text='Method not allowed')
