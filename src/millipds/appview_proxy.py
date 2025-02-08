@@ -68,7 +68,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
         async with get_client(request).post(
             service_route + request.path,
             data=request_body,
-            headers=(authn | {'Content-Type': request.content_type}),
+            headers=authn | {'Content-Type': request.content_type},
         ) as r:
             body_bytes = await r.read()  # TODO: streaming?
             return web.Response(
