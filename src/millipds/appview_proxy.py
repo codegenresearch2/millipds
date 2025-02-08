@@ -30,7 +30,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
         service_did = service.partition('#')[0]
         resolved_service = await did_resolver.resolve(service_did)
         if resolved_service is None:
-            return web.HTTPInternalServerError(text='Unable to resolve service DID')
+            return web.HTTPInternalServerError(text=f'Unable to resolve service DID: {service}')
         service_route = SERVICE_ROUTES.get(service) or resolved_service
     else:
         service_did = db.config['bsky_appview_did']
@@ -57,14 +57,13 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
         headers=auth_headers,
     ) as r:
         body_bytes = await r.read()
-        logger.info(f'Proxied lxm: {lxm}')  # Simplified logging
+        logger.info(f'Proxied lxm: {lxm} to service: {service_route}')  # More descriptive logging
         return web.Response(
             body=body_bytes,
             content_type=r.content_type,
             status=r.status,
         )
-    
+
     # TODO: Implement handling for POST and PUT requests
-    # Add similar placeholders for methods that are not yet implemented
     # Consider adding error handling for different HTTP methods
     # Ensure to follow the gold code's consistent formatting and structure
