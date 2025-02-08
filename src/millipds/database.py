@@ -1,0 +1,1 @@
+python\\n# __init__.py\\nfrom .database import Database  # Import the Database class from the database module\\n\\n__all__ = ['Database']  # Expose the Database class to the package's namespace\\n
