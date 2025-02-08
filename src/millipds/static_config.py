@@ -5,7 +5,7 @@ HTTP_LOG_FMT = '%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Ag
 
 GROUPNAME = "millipds-sock"
 
-# Versioning for the database, increment this when there are breaking changes to the schema. Current version is 2.
+# Versioning for the database, increment this when there are breaking changes to the schema.
 # NB: This should be updated whenever the database schema is modified in a way that could affect existing data.
 MILLIPDS_DB_VERSION = 2
 
