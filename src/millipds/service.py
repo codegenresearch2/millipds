@@ -1,1 +1,1 @@
-Here is a shorter version of the code snippet that should be easier to test.
+import os"
