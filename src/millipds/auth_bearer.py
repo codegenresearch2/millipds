@@ -19,59 +19,30 @@ def authenticated(handler):
         # Extract the auth token
         auth = request.headers.get('Authorization')
         if auth is None:
-            raise web.HTTPUnauthorized(text='authentication required (this may be a bug, I\'m erring on the side of caution for now)')
+            raise web.HTTPUnauthorized(text='authentication required (this may be a bug, I'm erring on the side of caution for now)')
         if not auth.startswith('Bearer '):
             raise web.HTTPUnauthorized(text='invalid auth type')
         token = auth.removeprefix('Bearer ')
 
         # Validate the JWT token
         db = get_db(request)
+        if not db.config['jwt_access_secret'] or not db.config['pds_did']:
+            raise web.HTTPUnauthorized(text='Configuration incomplete. Missing JWT access secret or PDS DID.')
+
         try:
-            # Decode the token without verification to inspect the header
-            decoded_token = jwt.api_jwt.decode_complete(token, options={'verify_signature': False})
-            algorithm = decoded_token.get('alg', 'HS256')
-
-            # Verify the token based on the algorithm
-            if algorithm in ['HS256', 'HS384', 'HS512']:
-                payload = jwt.decode(
-                    token,
-                    key=db.config['jwt_access_secret'],
-                    algorithms=[algorithm],
-                    audience=db.config['pds_did'],
-                    options={
-                        'require': ['exp', 'iat', 'scope'],
-                        'verify_exp': True,
-                        'verify_iat': True,
-                        'strict_aud': True,
-                    },
-                )
-            else:
-                # For asymmetric algorithms, we need to verify the key
-                jwk = await crypto.get_jwk_from_issuer(decoded_token['iss'])
-                payload = jwt.decode(
-                    token,
-                    key=jwk,
-                    algorithms=[algorithm],
-                    audience=db.config['pds_did'],
-                    options={
-                        'require': ['exp', 'iat', 'scope'],
-                        'verify_exp': True,
-                        'verify_iat': True,
-                        'strict_aud': True,
-                    },
-                )
-
-        except jwt.exceptions.PyJWTError as e:
-            raise web.HTTPUnauthorized(text=str(e))
+            # Decode the token based on the algorithm
+            decoded_token = jwt.decode(token, db.config['jwt_access_secret'], algorithms=['HS256', 'HS384', 'HS512'], audience=db.config['pds_did'], options={'require': ['exp', 'iat', 'scope'], 'verify_exp': True, 'verify_iat': True, 'strict_aud': True})
+        except jwt.InvalidTokenError:
+            raise web.HTTPUnauthorized(text='Invalid JWT token')
 
         # Check if the token scope allows access
-        if payload.get('scope') != 'com.atproto.access':
-            raise web.HTTPUnauthorized(text='invalid jwt scope')
+        if decoded_token.get('scope') != 'com.atproto.access':
+            raise web.HTTPUnauthorized(text='Invalid JWT scope')
 
         # Set the authenticated DID in the request
-        subject = payload.get('sub', '')
+        subject = decoded_token.get('sub', '')
         if not subject.startswith('did:'):
-            raise web.HTTPUnauthorized(text='invalid jwt: invalid subject')
+            raise web.HTTPUnauthorized(text='Invalid JWT: invalid subject')
         request['authed_did'] = subject
         return await handler(request, *args, **kwargs)
 
