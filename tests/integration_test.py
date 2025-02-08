@@ -1,30 +1,37 @@
-import unittest
-from dataclasses import dataclass
-import aiohttp
+import pytest
 import asyncio
+import aiohttp
+from dataclasses import dataclass
 
 @dataclass
 class PDSInfo:
     endpoint: str
     db: object
 
-class TestExample(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.session = aiohttp.ClientSession()
+@pytest.fixture(scope='module')
+def session():
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(aiohttp.ClientSession())
 
-    @classmethod
-    def tearDownClass(cls):
-        asyncio.get_event_loop().run_until_complete(cls.session.close())
+def test_hello_world(session):
+    async def fetch(session):
+        async with session.get('http://example.com') as response:
+            assert response.status == 200
+            assert 'Hello' in await response.text()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(fetch(session))
 
-    async def test_hello_world(self):
-        async with self.session.get('http://example.com') as response:
-            self.assertEqual(response.status, 200)
-            self.assertIn('Hello', await response.text())
+@pytest.mark.parametrize('test_input, expected', [
+    ('test_data_1', 'expected_1'),
+    ('test_data_2', 'expected_2')
+])
+def test_example_parametrized(session, test_input, expected):
+    async def fetch(session):
+        async with session.get('http://example.com') as response:
+            assert response.status == 200
+            assert 'Hello' in await response.text()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(fetch(session))
 
-    @unittest.skip('Example of a skipped test')
-    def test_example_skipped(self):
-        pass
-
-if __name__ == '__main__':
-    unittest.main()
+async def test_example_skipped():
+    pass
