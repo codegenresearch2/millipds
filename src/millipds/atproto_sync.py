@@ -27,9 +27,9 @@ async def sync_get_blob(request: web.Request):
             """
             SELECT blob.id FROM blob 
             INNER JOIN user ON blob.repo=user.id 
-            WHERE did=%s AND cid=%s AND refcount>0
+            WHERE did=? AND cid=? AND refcount>0
             """,
-            (did, bytes(cbrrr.CID.decode(cid))),
+            (did, bytes(cbrrr.CID.decode(cid)))
         ).fetchone()
         if blob_id is None:
             raise web.HTTPNotFound(text='blob not found')
@@ -40,7 +40,7 @@ async def sync_get_blob(request: web.Request):
         await res.prepare(request)
         async for (blob_part, *_) in con.execute(
             'SELECT data FROM blob_part WHERE blob=?',
-            (blob_id[0],),
+            (blob_id[0],)
         ):
             await res.write(blob_part)
         await res.write_eof()
