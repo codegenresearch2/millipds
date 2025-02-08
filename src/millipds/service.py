@@ -10,7 +10,6 @@ import hashlib
 
 import apsw
 import aiohttp
-from aiohttp_middlewares import cors_middleware
 from aiohttp import web
 import jwt
 
@@ -102,7 +101,11 @@ async def well_known_did_web(request: web.Request):
 @routes.get('/robots.txt')
 async def robots_txt(request: web.Request):
     return web.Response(
-        text="""\n# this is an atproto pds. please crawl it.\n\nUser-Agent: *\nAllow: /
+        text="""
+# this is an atproto pds. please crawl it.
+
+User-Agent: *
+Allow: /
 """
 
     )
@@ -143,8 +146,7 @@ async def actor_put_preferences(request: web.Request):
     ).encode()
     db = get_db(request)
     db.con.execute(
-        'UPDATE user SET prefs=? WHERE did=?',
-        (pref_bytes, request['authed_did']),
+        'UPDATE user SET prefs=? WHERE did=?', (pref_bytes, request['authed_did'])
     )
     return web.Response()
 
@@ -154,8 +156,7 @@ async def actor_put_preferences(request: web.Request):
 async def actor_get_preferences(request: web.Request):
     db = get_db(request)
     row = db.con.execute(
-        'SELECT prefs FROM user WHERE did=?',
-        (request['authed_did'],)
+        'SELECT prefs FROM user WHERE did=?', (request['authed_did'],)
     ).fetchone()
 
     # should be impossible, otherwise we wouldn't be auth'd
