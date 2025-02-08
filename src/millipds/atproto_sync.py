@@ -1,1 +1,1 @@
-// New code snippet goes here
+def main():""""
