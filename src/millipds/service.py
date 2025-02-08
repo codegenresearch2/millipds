@@ -1,1 +1,1 @@
-def example_function():\"\"\"\"
+import logging\
