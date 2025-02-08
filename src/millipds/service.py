@@ -3,9 +3,12 @@ import aiohttp
 import logging
 import sqlite3
 from aiohttp import web
+from aiohttp.web_request import Request
+from aiohttp.web_response import Response
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Database initialization
 def initialize_database():
@@ -17,7 +20,7 @@ def initialize_database():
     conn.close()
 
 # Update configuration
-async def update_config(key, value):
+async def update_config(key: str, value: str) -> None:
     conn = sqlite3.connect('config.db')
     cursor = conn.cursor()
     cursor.execute('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)', (key, value))
@@ -25,7 +28,7 @@ async def update_config(key, value):
     conn.close()
 
 # Service runner
-async def service_run_and_capture_port(service_command, queue):
+async def service_run_and_capture_port(service_command: list, queue: asyncio.Queue) -> None:
     process = await asyncio.create_subprocess_exec(*service_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
     if process.returncode != 0:
@@ -34,14 +37,14 @@ async def service_run_and_capture_port(service_command, queue):
     await queue.put(port)
 
 # Queue getter
-async def queue_get_task(queue):
+async def queue_get_task(queue: asyncio.Queue) -> str:
     try:
         return await queue.get()
     except asyncio.QueueEmpty:
         return None
 
 # Main function
-async def main(request):
+async def main(request: Request) -> Response:
     queue = asyncio.Queue()
     service_command = ['your_service_command_here']
     await asyncio.gather(
