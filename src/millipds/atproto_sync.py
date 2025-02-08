@@ -23,16 +23,13 @@ async def sync_get_blob(request: web.Request):
             """
             SELECT blob.id FROM blob 
             INNER JOIN user ON blob.repo=user.id 
-            WHERE did=? AND cid=? AND refcount>0
-            """,
+            WHERE did=%s AND cid=%s AND refcount>0""",
             (request.query['did'], bytes(cbrrr.CID.decode(request.query['cid']))),
         ).fetchone()
         if blob_id is None:
             raise web.HTTPNotFound(text='blob not found')
         res = web.StreamResponse(
-            headers={
-                'Content-Disposition': f'attachment; filename="{request.query['cid']}.bin"'
-            }
+            headers={'Content-Disposition': f'attachment; filename="{request.query['cid']}.bin"' }
         )
         res.content_type = 'application/octet-stream'
         await res.prepare(request)
