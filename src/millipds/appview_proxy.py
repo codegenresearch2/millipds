@@ -49,6 +49,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
             algorithm=crypto.jwt_signature_alg_for_pem(signing_key),
         )
     }
+    # TODO: cache this! (authn dictionary)
     if request.method == 'GET':
         async with get_client(request).get(
             service_route + request.path,
@@ -76,6 +77,8 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
                 status=r.status,
             )
     elif request.method == 'PUT':
+        # TODO: Consider handling PUT requests
         raise NotImplementedError('TODO: PUT')
     else:
+        # TODO: Consider handling other methods
         raise NotImplementedError('TODO')
