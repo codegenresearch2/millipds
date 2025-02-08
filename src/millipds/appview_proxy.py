@@ -21,6 +21,9 @@ SERVICE_ROUTES = {
 
 @authenticated
 async def service_proxy(request: web.Request, service: Optional[str] = None):
+    '''
+    Proxy requests to the specified service or default service based on the request.
+    '''
     lxm = request.path.rpartition('/')[2].partition('?')[0]
     db = get_db(request)
     did_resolver = DIDResolver(get_client(request))
