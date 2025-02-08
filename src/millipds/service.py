@@ -43,6 +43,16 @@ async def queue_get_task(queue: asyncio.Queue) -> str:
     except asyncio.QueueEmpty:
         return None
 
+# Middleware to handle security headers
+async def security_headers_middleware(app, handler):
+    async def middleware_handler(request):
+        response = await handler(request)
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Content-Security-Policy'] = 'default-src \'none\'; sandbox'
+        return response
+    return middleware_handler
+
 # Main function
 async def main(request: Request) -> Response:
     queue = asyncio.Queue()
@@ -54,7 +64,7 @@ async def main(request: Request) -> Response:
     return web.Response(text='Service started')
 
 # Setup the web application
-app = web.Application()
+app = web.Application(middlewares=[security_headers_middleware])
 app.router.add_get('/start_service', main)
 
 # Run the web application
