@@ -14,9 +14,8 @@ async def session():
     yield session
     await session.close()
 
-@pytest.mark.parametrize('test_input, expected',
-                         [('test_data_1', 'expected_1'), ('test_data_2', 'expected_2')])
-def test_hello_world(session):
+@pytest.mark.parametrize('test_input, expected', [('test_data_1', 'expected_1'), ('test_data_2', 'expected_2')])
+def test_hello_world(session, test_input, expected):
     async def fetch(session):
         async with session.get('http://example.com') as response:
             assert response.status == 200
