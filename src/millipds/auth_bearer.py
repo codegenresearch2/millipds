@@ -1,1 +1,1 @@
-import jwt\"import logging\"\"from aiohttp import web\"\"from .app_util import *\"\"from .crypto import validate_token\"\"logger = logging.getLogger(__name__)\"\""
+import jwt"
