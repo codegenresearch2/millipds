@@ -1,0 +1,1 @@
+import os\\nimport pytest\\n\\n# Ensure the test file exists\\nif not os.path.exists('tests/integration_test.py'):\\n    raise FileNotFoundError(\\n        'The test file `tests/integration_test.py` does not exist.'\\n    )\\n\\n# Run the tests\\nif __name__ == '__main__':\\n    pytest.main()
