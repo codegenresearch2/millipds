@@ -18,11 +18,13 @@ routes = web.RouteTableDef()
 @routes.get("/xrpc/com.atproto.sync.getBlob")
 async def sync_get_blob(request: web.Request):
     db = get_db(request)
+    try:
+        did = request.query['did']
+        cid = request.query['cid']
+    except KeyError:
+        raise web.HTTPBadRequest(text='Missing required parameters: did and/or cid')
+    
     with db.new_con(readonly=True) as con:
-        did = request.query.get('did')
-        cid = request.query.get('cid')
-        if did is None or cid is None:
-            raise web.HTTPBadRequest(text='Missing required parameters: did and/or cid')
         blob_id = con.execute(
             """
             SELECT blob.id FROM blob 
@@ -33,13 +35,14 @@ async def sync_get_blob(request: web.Request):
         ).fetchone()
         if blob_id is None:
             raise web.HTTPNotFound(text='blob not found')
+        
         res = web.StreamResponse(
             headers={'Content-Disposition': f'attachment; filename="{cid}.bin"' }
         )
         res.content_type = 'application/octet-stream'
         await res.prepare(request)
         async for (blob_part, *_) in con.execute(
-            'SELECT data FROM blob_part WHERE blob=?',
+            'SELECT data FROM blob_part WHERE blob=?' ,
             (blob_id[0],)
         ):
             await res.write(blob_part)
