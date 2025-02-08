@@ -1,1 +1,1 @@
-import logging\
+import logging\\\nimport asyncio\\nimport json\\nimport uuid\\n\\n# Set up logging\\nlogging.basicConfig(level=logging.DEBUG)\\\"nlogger = logging.getLogger(__name__)\\\"n\\n\\n# Example function\\\"ndef example_function() -> None:\\\"""Example function to demonstrate type hints and logging.\"""\\\n    logger.debug('This is a debug message.')\\\"n    return None
