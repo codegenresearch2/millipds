@@ -1,5 +1,4 @@
 import logging
-import time
 import jwt
 from aiohttp import web
 
