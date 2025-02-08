@@ -1,1 +1,1 @@
-Here is the shorter code snippet.
+def example_function():\"\"\"\"
