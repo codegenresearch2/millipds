@@ -4,6 +4,7 @@ import cbrrr
 import logging
 from atmst.blockstore import BlockStore
 from typing import Optional, Dict, List, Tuple
+from functools import cached_property
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class DBBlockStore(BlockStore):
         row = self.db.con.execute(
             "SELECT value FROM mst WHERE repo=? AND cid=?", (self.user_id, key)
         ).fetchone()
-        if row is None: 
+        if row is None:
             raise KeyError("block not found in db")
         return row[0]
 
@@ -53,7 +54,7 @@ class Database:
     def _init_tables(self) -> None:
         logger.info('initializing tables')
         self.con.execute(
-            """
+            '''
             CREATE TABLE config(
                 db_version INTEGER NOT NULL,
                 pds_pfx TEXT,
@@ -64,11 +65,8 @@ class Database:
             )"
         )
         self.con.execute(
-            "INSERT INTO config(
-                db_version,
-                jwt_access_secret
-            ) VALUES (?, ?)",
-            (static_config.MILLIPDS_DB_VERSION, secrets.token_hex()),
+            "INSERT INTO config(\n                db_version,\n                jwt_access_secret\n            ) VALUES (?, ?)",
+            (static_config.MILLIPDS_DB_VERSION, secrets.token_hex())
         )
         self.con.execute(
             "CREATE TABLE user(\n                id INTEGER PRIMARY KEY NOT NULL,\n                did TEXT NOT NULL,\n                handle TEXT NOT NULL,\n                prefs BLOB NOT NULL,\n                pw_hash TEXT NOT NULL,\n                signing_key TEXT NOT NULL,\n                head BLOB NOT NULL,\n                rev TEXT NOT NULL,\n                commit_bytes BLOB NOT NULL\n            )"
@@ -112,7 +110,7 @@ class Database:
         except AttributeError:
             pass
 
-    @property
+    @cached_property
     def config(self) -> Dict[str, object]:
         config_fields = (
             'db_version',
@@ -162,8 +160,7 @@ class Database:
             self.con.execute(
                 """
                 INSERT INTO user(\n                    did,\n                    handle,\n                    prefs,\n                    pw_hash,\n                    signing_key,\n                    head,\n                    rev,\n                    commit_bytes\n                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    did,\n                    handle,\n                    b"{}",\n                    pw_hash,\n                    privkey_pem,\n                    bytes(commit_cid),\n                    tid,\n                    commit_bytes\n                )
+                (did,\n                 handle,\n                 b"{}",\n                 pw_hash,\n                 privkey_pem,\n                 bytes(commit_cid),\n                 tid,\n                 commit_bytes)
             )
             user_id = self.con.last_insert_rowid()
             self.con.execute(
