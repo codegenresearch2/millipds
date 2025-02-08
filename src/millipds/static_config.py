@@ -5,8 +5,7 @@ HTTP_LOG_FMT = '%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Ag
 
 GROUPNAME = "millipds-sock"
 
-# Versioning for the database, increment this when there are breaking changes to the schema.
-# Current version is 2.
+# Versioning for the database, increment this when there are breaking changes to the schema. Current version is 2.
 MILLIPDS_DB_VERSION = 2
 
 # Versioning for ATProto repo
@@ -30,3 +29,6 @@ DID_CACHE_TTL = 60 * 60
 
 # The time-to-live for cache entries in case of error.
 DID_CACHE_ERROR_TTL = 60 * 5
+
+# Host for the PLC directory, if applicable
+PLC_DIRECTORY_HOST = "example.com"
