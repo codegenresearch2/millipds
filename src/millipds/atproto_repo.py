@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 import logging
 import hashlib
 from aiohttp import web
@@ -49,7 +49,7 @@ async def repo_apply_writes(request: web.Request):
 @routes.post('/xrpc/com.atproto.repo.createRecord')
 @authenticated
 async def repo_create_record(request: web.Request):
-    orig: dict = await request.json()
+    orig = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
         {
@@ -80,7 +80,7 @@ async def repo_create_record(request: web.Request):
 @routes.post('/xrpc/com.atproto.repo.putRecord')
 @authenticated
 async def repo_put_record(request: web.Request):
-    orig: dict = await request.json()
+    orig = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
         {
@@ -112,7 +112,7 @@ async def repo_put_record(request: web.Request):
 @routes.post('/xrpc/com.atproto.repo.deleteRecord')
 @authenticated
 async def repo_delete_record(request: web.Request):
-    orig: dict = await request.json()
+    orig = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
         {
