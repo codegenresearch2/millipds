@@ -31,8 +31,7 @@ class DIDResolver:
 
     def __init__(self,
                  session: aiohttp.ClientSession,
-                 plc_directory_host: str = "https://plc.directory")
- -> None:
+                 plc_directory_host: str = "https://plc.directory") -> None:
         self.session: aiohttp.ClientSession = session
         self.plc_directory_host: str = plc_directory_host
         self.did_methods: Dict[str, Callable[[str], Awaitable[DIDDoc]]] = {
