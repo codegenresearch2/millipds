@@ -35,7 +35,7 @@ routes = web.RouteTableDef()
 @web.middleware
 async def atproto_service_proxy_middleware(request: web.Request, handler):
     # https://atproto.com/specs/xrpc#service-proxying
-    atproto_proxy = request.headers.get("atproto-proxy")
+    atproto_proxy = request.headers.get('atproto-proxy')
     if atproto_proxy:
         return await service_proxy(request, atproto_proxy)
 
@@ -43,21 +43,21 @@ async def atproto_service_proxy_middleware(request: web.Request, handler):
     res: web.Response = await handler(request)
 
     # inject security headers (this should really be a separate middleware, but here works too)
-    res.headers.setdefault("X-Frame-Options", "DENY")
+    res.headers.setdefault('X-Frame-Options', 'DENY')
     res.headers.setdefault(
-        "X-Content-Type-Options", "nosniff"
+        'X-Content-Type-Options', 'nosniff'
     )
     res.headers.setdefault(
-        "Content-Security-Policy", "default-src 'none'; sandbox"
+        'Content-Security-Policy', 'default-src "none"; sandbox'
     )
     # NB: HSTS and other TLS-related headers not set, set them in nginx or wherever you terminate TLS
 
     return res
 
 
-@routes.get("/")
+@routes.get('/')
 async def hello(request: web.Request):
-    version = importlib.metadata.version("millipds")
+    version = importlib.metadata.version('millipds')
     msg = f"""
                           ,dPYb, ,dPYb,
                           IP'`Yb IP'`Yb
@@ -79,28 +79,28 @@ https://github.com/DavidBuchanan314/millipds
 
 
 @routes.get(
-    "/.well-known/did.json"
+    '/.well-known/did.json'
 ) # serve this server's did:web document (nb: reference PDS impl doesn't do this, hard to know the right thing to do)
 async def well_known_did_web(request: web.Request):
     cfg = get_db(request).config
     return web.json_response(
         {
-            "@context": [
-                "https://www.w3.org/ns/did/v1",
+            '@context': [
+                'https://www.w3.org/ns/did/v1',
             ],
-            "id": cfg["pds_did"],
-            "service": [
+            'id': cfg['pds_did'],
+            'service': [
                 {
-                    "id": "#atproto_pds",
-                    "type": "AtprotoPersonalDataServer",
-                    "serviceEndpoint": cfg["pds_pfx"],
+                    'id': '#atproto_pds',
+                    'type': 'AtprotoPersonalDataServer',
+                    'serviceEndpoint': cfg['pds_pfx'],
                 }
             ],
         }
     )
 
 
-@routes.get("/robots.txt")
+@routes.get('/robots.txt')
 async def robots_txt(request: web.Request):
     return web.Response(
         text="""\n# this is an atproto pds. please crawl it.
@@ -113,7 +113,7 @@ Allow: /
 
 
 # browsers love to request this unprompted, so here's an answer for them
-@routes.get("/favicon.ico")
+@routes.get('/favicon.ico')
 async def health(request: web.Request):
     return web.Response(
         text="""
@@ -121,23 +121,23 @@ async def health(request: web.Request):
                 <text x=\"50%\" y=\"0.95em\" font-size=\"90\" text-anchor=\"middle\">🌐</text>
             </svg>
         """,
-        content_type="image/svg+xml",
-        headers={"Cache-Control": "max-age=864000"},
+        content_type='image/svg+xml',
+        headers={'Cache-Control': 'max-age=864000'},
     )
 
 
 # not a spec'd endpoint, but the reference impl has this too
-@routes.get("/xrpc/_health")
+@routes.get('/xrpc/_health')
 async def health(request: web.Request):
-    version = importlib.metadata.version("millipds")
-    return web.json_response({"version": f"millipds v{version}"})
+    version = importlib.metadata.version('millipds')
+    return web.json_response({'version': f'millipds v{version}'})
 
 
 # we should not be implementing bsky-specific logic here! (ideally, a PDS should not be aware of app-specific logic)
-@routes.post("/xrpc/app.bsky.actor.putPreferences")
+@routes.post('/xrpc/app.bsky.actor.putPreferences')
 @authenticated
 async def actor_put_preferences(request: web.Request):
-    # NOTE: we don't try to pull out the specific "preferences" field
+    # NOTE: we don't try to pull out the specific 'preferences' field
     prefs = await request.json()
     pref_bytes = json.dumps(
         prefs,
@@ -147,18 +147,19 @@ async def actor_put_preferences(request: web.Request):
     ).encode()
     db = get_db(request)
     db.con.execute(
-        "UPDATE user SET prefs=? WHERE did=?",
-        (pref_bytes, request["authed_did"]),
+        'UPDATE user SET prefs=? WHERE did=?',
+        (pref_bytes, request['authed_did']),
     )
     return web.Response()
 
 
-@routes.get("/xrpc/app.bsky.actor.getPreferences")
+@routes.get('/xrpc/app.bsky.actor.getPreferences')
 @authenticated
 async def actor_get_preferences(request: web.Request):
     db = get_db(request)
     row = db.con.execute(
-        "SELECT prefs FROM user WHERE did=?", (request["authed_did"],)
+        'SELECT prefs FROM user WHERE did=?',
+        (request['authed_did'],)
     ).fetchone()
 
     # should be impossible, otherwise we wouldn't be auth'd
@@ -168,16 +169,16 @@ async def actor_get_preferences(request: web.Request):
 
     # TODO: in the future™ this will be unnecessary because we initialize it properly during account creation and/or I wrote a db migration script
     if not prefs:
-        prefs = {"preferences": []}
+        prefs = {'preferences': []}
 
     return web.json_response(prefs)
 
 
-@routes.get("/xrpc/com.atproto.identity.resolveHandle")
+@routes.get('/xrpc/com.atproto.identity.resolveHandle')
 async def identity_resolve_handle(request: web.Request):
-    handle = request.query.get("handle")
+    handle = request.query.get('handle')
     if handle is None:
-        raise web.HTTPBadRequest(text="missing or invalid handle")
+        raise web.HTTPBadRequest(text='missing or invalid handle')
 
     did = get_db(request).did_by_handle(handle)
     if not did:
@@ -185,32 +186,32 @@ async def identity_resolve_handle(request: web.Request):
         return await service_proxy(request)
 
     # TODO: set cache control response headers?
-    return web.json_response({"did": did})
+    return web.json_response({'did': did})
 
 
-@routes.get("/xrpc/com.atproto.server.describeServer")
+@routes.get('/xrpc/com.atproto.server.describeServer')
 async def server_describe_server(request: web.Request):
     return web.json_response(
         {
-            "did": get_db(request).config["pds_did"],
-            "availableUserDomains": [],
+            'did': get_db(request).config['pds_did'],
+            'availableUserDomains': [],
         }
     )
 
 
 # TODO: ratelimit this!!!
-@routes.post("/xrpc/com.atproto.server.createSession")
+@routes.post('/xrpc/com.atproto.server.createSession')
 async def server_create_session(request: web.Request):
     # extract the args
     try:
         req_json: dict = await request.json()
     except json.JSONDecodeError:
-        raise web.HTTPBadRequest(text="expected JSON")
+        raise web.HTTPBadRequest(text='expected JSON')
 
-    identifier = req_json.get("identifier")
-    password = req_json.get("password")
+    identifier = req_json.get('identifier')
+    password = req_json.get('password')
     if not (isinstance(identifier, str) and isinstance(password, str)):
-        raise web.HTTPBadRequest(text="invalid identifier or password")
+        raise web.HTTPBadRequest(text='invalid identifier or password')
 
     # do authentication
     db = get_db(request)
@@ -219,65 +220,65 @@ async def server_create_session(request: web.Request):
             did_or_handle=identifier, password=password
         )
     except KeyError:
-        raise web.HTTPUnauthorized(text="user not found")
+        raise web.HTTPUnauthorized(text='user not found')
     except ValueError:
-        raise web.HTTPUnauthorized(text="incorrect identifier or password")
+        raise web.HTTPUnauthorized(text='incorrect identifier or password')
 
     # prepare access tokens
     unix_seconds_now = int(time.time())
     access_jwt = jwt.encode(
         {
-            "scope": "com.atproto.access",
-            "aud": db.config["pds_did"],
-            "sub": did,
-            "iat": unix_seconds_now,
-            "exp": unix_seconds_now + 60 * 60 * 24,  # 24h
+            'scope': 'com.atproto.access',
+            'aud': db.config['pds_did'],
+            'sub': did,
+            'iat': unix_seconds_now,
+            'exp': unix_seconds_now + 60 * 60 * 24,  # 24h
         },
-        db.config["jwt_access_secret"],
-        "HS256",
+        db.config['jwt_access_secret'],
+        'HS256',
     )
 
     refresh_jwt = jwt.encode(
         {
-            "scope": "com.atproto.refresh",
-            "aud": db.config["pds_did"],
-            "sub": did,
-            "iat": unix_seconds_now,
-            "exp": unix_seconds_now + 60 * 60 * 24 * 90,  # 90 days!
+            'scope': 'com.atproto.refresh',
+            'aud': db.config['pds_did'],
+            'sub': did,
+            'iat': unix_seconds_now,
+            'exp': unix_seconds_now + 60 * 60 * 24 * 90,  # 90 days!
         },
-        db.config["jwt_access_secret"],
-        "HS256",
+        db.config['jwt_access_secret'],
+        'HS256',
     )
 
     return web.json_response(
         {
-            "did": did,
-            "handle": handle,
-            "accessJwt": access_jwt,
-            "refreshJwt": refresh_jwt,
+            'did': did,
+            'handle': handle,
+            'accessJwt': access_jwt,
+            'refreshJwt': refresh_jwt,
         }
     )
 
 
-@routes.get("/xrpc/com.atproto.server.getServiceAuth")
+@routes.get('/xrpc/com.atproto.server.getServiceAuth')
 @authenticated
 async def server_get_service_auth(request: web.Request):
-    aud = request.query.get("aud")
-    lxm = request.query.get("lxm")
+    aud = request.query.get('aud')
+    lxm = request.query.get('lxm')
     # note, we ignore exp for now
     if not (aud and lxm):
-        raise web.HTTPBadRequest(text="missing aud or lxm")
+        raise web.HTTPBadRequest(text='missing aud or lxm')
     # TODO: validation of aud and lxm?
     db = get_db(request)
-    signing_key = db.signing_key_pem_by_did(request["authed_did"])
+    signing_key = db.signing_key_pem_by_did(request['authed_did'])
     return web.json_response(
         {
-            "token": jwt.encode(
+            'token': jwt.encode(
                 {
-                    "iss": request["authed_did"],
-                    "aud": aud,
-                    "lxm": lxm,
-                    "exp": int(time.time()) + 60,
+                    'iss': request['authed_did'],
+                    'aud': aud,
+                    'lxm': lxm,
+                    'exp': int(time.time()) + 60,
                 },
                 signing_key,
                 algorithm=crypto.jwt_signature_alg_for_pem(signing_key),
@@ -286,100 +287,84 @@ async def server_get_service_auth(request: web.Request):
     )
 
 
-@routes.post("/xrpc/com.atproto.identity.updateHandle")
+@routes.post('/xrpc/com.atproto.identity.updateHandle')
 @authenticated
 async def identity_update_handle(request: web.Request):
     req_json: dict = await request.json()
-    handle = req_json.get("handle")
+    handle = req_json.get('handle')
     if handle is None:
-        raise web.HTTPBadRequest(text="missing or invalid handle")
+        raise web.HTTPBadRequest(text='missing or invalid handle')
     # TODO: actually validate it, and update the db!!! (I'm writing this half-baked version just so I can send firehose #identity events)
     with get_db(request).new_con() as con:
         # TODO: refactor to avoid duplicated logic between here and apply_writes
         firehose_seq = con.execute(
-            "SELECT IFNULL(MAX(seq), 0) + 1 FROM firehose"
+            'SELECT IFNULL(MAX(seq), 0) + 1 FROM firehose'
         ).fetchone()[0]
-        firehose_bytes = cbrrr.encode_dag_cbor({
-            "t": "#identity", "op": 1
-        }) + cbrrr.encode_dag_cbor(
+        firehose_bytes = cbrrr.encode_dag_cbor({'t': '#identity', 'op': 1}) + cbrrr.encode_dag_cbor(
             {
-                "seq": firehose_seq,
-                "did": request["authed_did"],
-                "time": util.iso_string_now(),
-                "handle": handle,
+                'seq': firehose_seq,
+                'did': request['authed_did'],
+                'time': util.iso_string_now(),
+                'handle': handle,
             }
         )
         con.execute(
-            "INSERT INTO firehose (seq, timestamp, msg) VALUES (?, ?, ?)",
-            (
-                firehose_seq,
-                0,
-                firehose_bytes,
-            )
+            'INSERT INTO firehose (seq, timestamp, msg) VALUES (?, ?, ?)', (firehose_seq, 0, firehose_bytes)
         )
-    await atproto_repo.firehose_broadcast(
-        request, (firehose_seq, firehose_bytes)
-    )
+    await atproto_repo.firehose_broadcast(request, (firehose_seq, firehose_bytes))
 
     # temp hack: #account events shouldn't really be generated here
     with get_db(request).new_con() as con:
         # TODO: refactor to avoid duplicated logic between here and apply_writes
         firehose_seq = con.execute(
-            "SELECT IFNULL(MAX(seq), 0) + 1 FROM firehose"
+            'SELECT IFNULL(MAX(seq), 0) + 1 FROM firehose'
         ).fetchone()[0]
-        firehose_bytes = cbrrr.encode_dag_cbor({
-            "t": "#account", "op": 1
-        }) + cbrrr.encode_dag_cbor(
+        firehose_bytes = cbrrr.encode_dag_cbor({'t': '#account', 'op': 1}) + cbrrr.encode_dag_cbor(
             {
-                "seq": firehose_seq,
-                "did": request["authed_did"],
-                "time": util.iso_string_now(),
-                "active": True,
+                'seq': firehose_seq,
+                'did': request['authed_did'],
+                'time': util.iso_string_now(),
+                'active': True,
             }
         )
         con.execute(
-            "INSERT INTO firehose (seq, timestamp, msg) VALUES (?, ?, ?)",
-            (
-                firehose_seq,
-                0,
-                firehose_bytes,
-            )
+            'INSERT INTO firehose (seq, timestamp, msg) VALUES (?, ?, ?)', (firehose_seq, 0, firehose_bytes)
         )
-    await atproto_repo.firehose_broadcast(
-        request, (firehose_seq, firehose_bytes)
-    )
+    await atproto_repo.firehose_broadcast(request, (firehose_seq, firehose_bytes))
 
     return web.Response()
 
 
-@routes.get("/xrpc/com.atproto.server.getSession")
+@routes.get('/xrpc/com.atproto.server.getSession')
 @authenticated
 async def server_get_session(request: web.Request):
     return web.json_response(
         {
-            "handle": get_db(request).handle_by_did(request["authed_did"]),
-            "did": request["authed_did"],
-            "email": "tfw_no@email.invalid",  # this and below are just here for testing lol
-            "emailConfirmed": True,
-            # "didDoc": {}, # iiuc this is only used for entryway usecase?
+            'handle': get_db(request).handle_by_did(request['authed_did']),
+            'did': request['authed_did'],
+            'email': 'tfw_no@email.invalid',  # this and below are just here for testing lol
+            'emailConfirmed': True,
+            # 'didDoc': {}, # iiuc this is only used for entryway usecase?
         }
     )
 
 
 def construct_app(
-    routes, db: database.Database, client: aiohttp.ClientSession
+    routes,
+    db: database.Database,
+    client: aiohttp.ClientSession,
 ) -> web.Application:
     cors = cors_middleware(
         allow_all=True,
-        expose_headers=["*"],
-        allow_headers=["*"],
-        allow_methods=["*"],
+        expose_headers=['*'],
+        allow_headers=['*'],
+        allow_methods=['*'],
         allow_credentials=True,
         max_age=100_000_000,
     )
 
     client.headers.update(
-        {"User-Agent": importlib.metadata.version("millipds")}
+        {'User-Agent': importlib.metadata.version('millipds')}
     )
 
     app = web.Application(middlewares=[cors, atproto_service_proxy_middleware])
@@ -393,12 +378,10 @@ def construct_app(
     app.add_routes(atproto_repo.routes)
 
     # fallback service proxying for bsky appview routes (hopefully not needed in the future, when atproto-proxy header is used)
-    app.add_routes(
-        [
-            web.get("/xrpc/app.bsky.{_:.*}", service_proxy),
-            web.post("/xrpc/app.bsky.{_:.*}", service_proxy),
-        ]
-    )
+    app.add_routes([
+        web.get('/xrpc/app.bsky.{_:.*}', service_proxy),
+        web.post('/xrpc/app.bsky.{_:.*}', service_proxy),
+    ])
 
     return app
 
@@ -419,10 +402,10 @@ async def run(
     await runner.setup()
 
     if sock_path is None:
-        logger.info(f"listening on http://{host}:{port}")
+        logger.info(f'listening on http://{host}:{port}')
         site = web.TCPSite(runner, host=host, port=port)
     else:
-        logger.info(f"listening on {sock_path}")
+        logger.info(f'listening on {sock_path}')
         site = web.UnixSite(runner, path=sock_path)
 
     await site.start()
@@ -437,11 +420,11 @@ async def run(
             os.chown(sock_path, os.geteuid(), sock_gid)
         except KeyError:
             logger.warning(
-                f"Failed to set socket group - group {static_config.GROUPNAME!r} not found."
+                f'Failed to set socket group - group {static_config.GROUPNAME!r} not found.'
             )
         except PermissionError:
             logger.warning(
-                f"Failed to set socket group - are you a member of the {static_config.GROUPNAME!r} group?"
+                f'Failed to set socket group - are you a member of the {static_config.GROUPNAME!r} group?'
             )
 
         os.chmod(sock_path, 0o770)
