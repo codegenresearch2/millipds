@@ -110,7 +110,6 @@ Allow: /
 
     )
 
-
 # browsers love to request this unprompted, so here's an answer for them
 @routes.get('/favicon.ico')
 async def health(request: web.Request):
@@ -124,13 +123,11 @@ async def health(request: web.Request):
         headers={'Cache-Control': 'max-age=864000'},
     )
 
-
 # not a spec'd endpoint, but the reference impl has this too
 @routes.get('/xrpc/_health')
 async def health(request: web.Request):
     version = importlib.metadata.version('millipds')
     return web.json_response({'version': f'millipds v{version}'})
-
 
 # we should not be implementing bsky-specific logic here! (ideally, a PDS should not be aware of app-specific logic)
 @routes.post('/xrpc/app.bsky.actor.putPreferences')
@@ -194,7 +191,6 @@ async def server_describe_server(request: web.Request):
             'availableUserDomains': [],
         }
     )
-
 
 # TODO: ratelimit this!!!
 @routes.post('/xrpc/com.atproto.server.createSession')
@@ -390,9 +386,7 @@ async def run(
     host: str,
     port: int,
 ):
-    """
-    This gets invoked via millipds.__main__.py
-    """
+    # This gets invoked via millipds.__main__.py
 
     app = construct_app(routes, db, client)
     runner = web.AppRunner(app, access_log_format=static_config.HTTP_LOG_FMT)
