@@ -1,1 +1,1 @@
-Here is a shorter version of the code snippet that should be easier to test:"""def test_function():""""}
+import aiohttp\\nimport asyncio\\n\\nasync def fetch_data(session, url):\\    async with session.get(url) as response:\\        return await response.json()\\n\\nasync def main() -> None:\\    async with aiohttp.ClientSession() as session:\\        data = await fetch_data(session, 'https://api.example.com/data')\\        print(data)\\n\\nif __name__ == '__main__':\\    asyncio.run(main())
