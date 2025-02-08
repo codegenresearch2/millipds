@@ -51,22 +51,28 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     }  # TODO: cache this!
     if request.method == "GET":
         async with get_client(request).get(
-            service_route + request.path, params=request.query, headers=authn
+            service_route + request.path,
+            params=request.query,
+            headers=authn,
         ) as r:
             body_bytes = await r.read()  # TODO: streaming?
             return web.Response(
-                body=body_bytes, content_type=r.content_type, status=r.status
+                body=body_bytes,
+                content_type=r.content_type,
+                status=r.status,
             )  # XXX: allowlist safe content types!
     elif request.method == "POST":
         request_body = await request.read()  # TODO: streaming?
         async with get_client(request).post(
-            service_route + request.path, 
-            data=request_body, 
+            service_route + request.path,
+            data=request_body,
             headers=(authn | {"Content-Type": request.content_type}),
         ) as r:
             body_bytes = await r.read()  # TODO: streaming?
             return web.Response(
-                body=body_bytes, content_type=r.content_type, status=r.status
+                body=body_bytes,
+                content_type=r.content_type,
+                status=r.status,
             )  # XXX: allowlist safe content types!
     elif request.method == "PUT":
         raise NotImplementedError("TODO: PUT")
