@@ -45,8 +45,6 @@ class DIDResolver:
 
     # note: the uncached methods raise exceptions on failure, but this one returns None
     async def resolve_with_db_cache(self, db: Database, did: str) -> Optional[DIDDoc]:
-        # TODO: prevent concurrent queries for the same DID - use locks?
-
         # try the db first
         now = int(time.time())
         row = db.con.execute(
@@ -78,7 +76,6 @@ class DIDResolver:
         )
 
         # update the cache (note: we cache failures too, but with a shorter TTL)
-        # TODO: if current doc is None, only replace if the existing entry is also None
         db.con.execute(
             "INSERT OR REPLACE INTO did_cache (did, doc, created_at, expires_at) VALUES (?, ?, ?, ?)",
             (
@@ -102,7 +99,6 @@ class DIDResolver:
             raise ValueError(f"Unsupported DID method: {method}")
         return await resolver(did)
 
-    # 64k ought to be enough for anyone!
     async def _get_json_with_limit(self, url: str, limit: int) -> DIDDoc:
         async with self.session.get(url) as r:
             r.raise_for_status()
@@ -114,7 +110,6 @@ class DIDResolver:
                 return json.loads(e.partial)
 
     async def resolve_did_web(self, did: str) -> DIDDoc:
-        # TODO: support port numbers on localhost?
         if not re.match(r"^did:web:[a-z0-9\.\-]+$", did):
             raise ValueError("Invalid did:web")
         host = did.rpartition(":")[2]
@@ -124,7 +119,7 @@ class DIDResolver:
         )
 
     async def resolve_did_plc(self, did: str) -> DIDDoc:
-        if not re.match(r"^did:plc:[a-z2-7]+$", did):  # base32-sortable
+        if not re.match(r"^did:plc:[a-z2-7]+$", did):
             raise ValueError("Invalid did:plc")
 
         return await self._get_json_with_limit(
