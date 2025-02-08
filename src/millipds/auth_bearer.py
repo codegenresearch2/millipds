@@ -20,8 +20,7 @@ def authenticated(handler):
         auth = request.headers.get('Authorization')
         if auth is None:
             raise web.HTTPUnauthorized(
-                text='authentication required (this may be a bug, I'm erring on the side of caution for now)'
-            )
+                text='authentication required (this may be a bug, I\'m erring on the side of caution for now)'\n            )
         if not auth.startswith('Bearer '):
             raise web.HTTPUnauthorized(text='invalid auth type')
         token = auth.removeprefix('Bearer ')
@@ -30,7 +29,7 @@ def authenticated(handler):
         db = get_db(request)
         try:
             # Decode the token without verification to inspect the header
-            decoded_token = jwt.decode(token, options={'verify_signature': False})
+            decoded_token = jwt.api_jwt.decode_complete(token, options={'verify_signature': False})
             algorithm = decoded_token.get('alg', 'HS256')
 
             # Verify the token based on the algorithm
