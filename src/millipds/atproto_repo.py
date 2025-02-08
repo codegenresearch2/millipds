@@ -32,7 +32,7 @@ async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
 
 
 async def apply_writes_and_emit_firehose(request: web.Request, req_json: Dict[str, Any]) -> Dict[str, Any]:
-    if req_json['repo'] != request['authed_did']:  # Ensure repo matches authed_did
+    if req_json['repo'] != request['authed_did']:
         raise web.HTTPUnauthorized(text='not authed for that repo')
     res, firehose_seq, firehose_bytes = repo_ops.apply_writes(
         get_db(request), request['authed_did'], req_json['writes'], req_json.get('swapCommit'))
@@ -207,10 +207,7 @@ async def repo_list_records(request: web.Request):
     for rkey, cid, value in db.con.execute(
         f'''SELECT rkey, cid, value
             FROM record
-            WHERE repo=(SELECT id FROM user WHERE did=? OR handle=?)
-                AND nsid=? AND rkey{'>' if reverse else '<'}?
-            ORDER BY rkey {'ASC' if reverse else 'DESC'}
-            LIMIT ?''', (did_or_handle, did_or_handle, collection, cursor, limit))
+            WHERE repo=(SELECT id FROM user WHERE did=? OR handle=?) AND nsid=? AND rkey{'>' if reverse else '<'}? ORDER BY rkey {'ASC' if reverse else 'DESC'} LIMIT ?''', (did_or_handle, did_or_handle, collection, cursor, limit)):
         records.append(
             {
                 'uri': f'at://{did_or_handle}/{collection}/{rkey}', # TODO rejig query to get the did out always
