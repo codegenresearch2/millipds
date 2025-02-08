@@ -216,8 +216,7 @@ async def repo_list_records(request: web.Request):
             }
         )
     return web.json_response(
-        {'records': records} | ({'cursor': rkey} if len(records) == limit else {})
-    )
+        {'records': records} | ({'cursor': rkey} if len(records) == limit else {}))
 
 
 @routes.post('/xrpc/com.atproto.repo.uploadBlob')
