@@ -18,9 +18,9 @@ async def main_route(request):
 async def security_headers_middleware(app, handler):
     async def middleware_handler(request):
         response = await handler(request)
-        response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['Content-Security-Policy'] = "default-src 'none'; sandbox"
+        response.headers.setdefault('X-Frame-Options', 'DENY')
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('Content-Security-Policy', "default-src 'none'; sandbox")
         return response
     return middleware_handler
 
