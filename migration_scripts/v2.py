@@ -1,5 +1,3 @@
-# TODO: some smarter way of handling migrations
-
 import apsw
 import apsw.bestpractice
 
@@ -7,33 +5,28 @@ apsw.bestpractice.apply(apsw.bestpractice.recommended)
 
 from millipds import static_config
 
-with apsw.Connection(static_config.MAIN_DB_PATH) as con:
-	version_now, *_ = con.execute("SELECT db_version FROM config").fetchone()
+class DatabaseMigration:
+    def __init__(self, db_path: str):
+        self.db_path = db_path
 
-	assert version_now == 1
+    def apply_migration(self, version_from: int, version_to: int):
+        with apsw.Connection(self.db_path) as con:
+            version_now, *_ = con.execute("SELECT db_version FROM config").fetchone()
 
-	con.execute(
-		"""
-		CREATE TABLE did_cache(
-			did TEXT PRIMARY KEY NOT NULL,
-			doc TEXT,
-			created_at INTEGER NOT NULL,
-			expires_at INTEGER NOT NULL
-		)
-		"""
-	)
+            assert version_now == version_from
 
-	con.execute(
-		"""
-		CREATE TABLE handle_cache(
-			handle TEXT PRIMARY KEY NOT NULL,
-			did TEXT,
-			created_at INTEGER NOT NULL,
-			expires_at INTEGER NOT NULL
-		)
-		"""
-	)
+            if version_to == 2:
+                con.execute(
+                    \"\"\"
+                    CREATE TABLE did_cache(\n                        did TEXT PRIMARY KEY NOT NULL,\n                        doc TEXT,\n                        created_at INTEGER NOT NULL,\n                        expires_at INTEGER NOT NULL\n                    )\"\"\"
+                )
 
-	con.execute("UPDATE config SET db_version=2")
+            con.execute("UPDATE config SET db_version=?", (version_to,))
 
-print("v1 -> v2 Migration successful")
+        print(f"v{version_from} -> v{version_to} Migration successful")
+
+
+# TODO: some smarter way of handling migrations
+
+migration = DatabaseMigration(static_config.MAIN_DB_PATH)
+migration.apply_migration(1, 2)
