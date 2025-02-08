@@ -10,19 +10,19 @@ from . import crypto
 logger = logging.getLogger(__name__)
 
 class Database:
-    def __init__(self, path):
+    def __init__(self, path: str):
         self.path = path
         self.config = {}
         self.pw_hasher = argon2.PasswordHasher()
         self.con = self._new_con()
 
-    def _new_con(self, readonly=False):
+    def _new_con(self, readonly: bool = False) -> apsw.Connection:
         return apsw.Connection(
             self.path,
             flags=(apsw.SQLITE_OPEN_READONLY if readonly else apsw.SQLITE_OPEN_READWRITE | apsw.SQLITE_OPEN_CREATE)
         )
 
-    def update_config(self, pds_pfx=None, pds_did=None, bsky_appview_pfx=None, bsky_appview_did=None):
+    def update_config(self, pds_pfx: str = None, pds_did: str = None, bsky_appview_pfx: str = None, bsky_appview_did: str = None):
         if pds_pfx is not None:
             self.config['pds_pfx'] = pds_pfx
         if pds_did is not None:
@@ -33,14 +33,14 @@ class Database:
             self.config['bsky_appview_did'] = bsky_appview_did
 
     @property
-    def config(self):
+    def config(self) -> dict:
         return self._config
 
     @config.setter
-    def config(self, value):
+    def config(self, value: dict):
         self._config = value
 
-    def create_account(self, did, handle, password, privkey):
+    def create_account(self, did: str, handle: str, password: str, privkey: crypto.ec.EllipticCurvePrivateKey):
         pw_hash = self.pw_hasher.hash(password)
         privkey_pem = crypto.privkey_to_pem(privkey)
         logger.info(f'Creating account for did={did}, handle={handle}')
@@ -62,16 +62,8 @@ class Database:
             commit_cid = cbrrr.CID.cidv1_dag_cbor_sha256_32_from(commit_bytes)
             self.con.execute(
                 '''
-                INSERT INTO user(
-                    did,
-                    handle,
-                    prefs,
-                    pw_hash,
-                    signing_key,
-                    head,
-                    rev,
-                    commit_bytes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                INSERT INTO user(did, handle, prefs, pw_hash, signing_key, head, rev, commit_bytes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
                 (did, handle, b'{}', pw_hash, privkey_pem, bytes(commit_cid), tid, commit_bytes)
             )
 
@@ -187,7 +179,7 @@ class Database:
             )"
         )
 
-    def verify_account_login(self, did_or_handle, password):
+    def verify_account_login(self, did_or_handle: str, password: str) -> tuple[str, str, str, str]:
         row = self.con.execute(
             """
             SELECT did, handle, pw_hash FROM user WHERE did=? OR handle=?"",
@@ -202,7 +194,7 @@ class Database:
             raise ValueError('Invalid password')
         return did, handle
 
-    def did_by_handle(self, handle):
+    def did_by_handle(self, handle: str) -> str:
         row = self.con.execute(
             """
             SELECT did FROM user WHERE handle=?"",
@@ -212,7 +204,7 @@ class Database:
             return None
         return row[0]
 
-    def handle_by_did(self, did):
+    def handle_by_did(self, did: str) -> str:
         row = self.con.execute(
             """
             SELECT handle FROM user WHERE did=?"",
@@ -222,7 +214,7 @@ class Database:
             return None
         return row[0]
 
-    def signing_key_pem_by_did(self, did):
+    def signing_key_pem_by_did(self, did: str) -> str:
         row = self.con.execute(
             """
             SELECT signing_key FROM user WHERE did=?"",
@@ -232,7 +224,7 @@ class Database:
             return None
         return row[0]
 
-    def list_repos(self):
+    def list_repos(self) -> list[tuple[str, cbrrr.CID, str]]:
         return [
             (did, cbrrr.CID(head), rev)
             for did, head, rev in self.con.execute(
@@ -241,16 +233,16 @@ class Database:
             )
         ]
 
-    def get_blockstore(self, did):
+    def get_blockstore(self, did: str) -> 'DBBlockStore':
         return DBBlockStore(self.con, did)
 
 class DBBlockStore(BlockStore):
-    def __init__(self, db_connection, repo_id):
+    def __init__(self, db_connection: apsw.Connection, repo_id: int):
         self.db_connection = db_connection
         self.repo_id = repo_id
         self.logger = logging.getLogger(__name__)
 
-    def get_block(self, key):
+    def get_block(self, key: bytes) -> bytes:
         try:
             row = self.db_connection.execute(
                 """
@@ -264,7 +256,7 @@ class DBBlockStore(BlockStore):
             self.logger.error(f'Error retrieving block with key: {key} - {e}')
             raise
 
-    def put_block(self, key, value):
+    def put_block(self, key: bytes, value: bytes):
         try:
             self.db_connection.execute(
                 """
@@ -275,7 +267,7 @@ class DBBlockStore(BlockStore):
             self.logger.error(f'Error putting block with key: {key} - {e}')
             raise
 
-    def del_block(self, key):
+    def del_block(self, key: bytes):
         try:
             self.db_connection.execute(
                 """
