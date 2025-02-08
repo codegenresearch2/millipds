@@ -19,7 +19,7 @@ def authenticated(handler):
         # Extract the auth token
         auth = request.headers.get('Authorization')
         if auth is None:
-            raise web.HTTPUnauthorized(text='authentication required (this may be a bug, I'm erring on the side of caution for now)')
+            raise web.HTTPUnauthorized(text='authentication required (this may be a bug, I\'m erring on the side of caution for now)')
         if not auth.startswith('Bearer '):
             raise web.HTTPUnauthorized(text='invalid auth type')
         token = auth.removeprefix('Bearer ')
