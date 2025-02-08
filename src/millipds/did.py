@@ -44,9 +44,7 @@ class DIDResolver:
         self.misses = 0
 
     # note: the uncached methods raise exceptions on failure, but this one returns None
-    async def resolve_with_db_cache(self,
-                                     db: Database,
-                                     did: str) -> Optional[DIDDoc]:
+    async def resolve_with_db_cache(self, db: Database, did: str) -> Optional[DIDDoc]:
         # TODO: prevent concurrent queries for the same DID - use locks?
 
         # try the db first
