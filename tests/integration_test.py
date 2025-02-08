@@ -12,30 +12,24 @@ from millipds import service
 from millipds import database
 from millipds import crypto
 
-
 @dataclasses.dataclass
 class PDSInfo:
     endpoint: str
     db: database.Database
 
-
 old_web_tcpsite_start = aiohttp.web.TCPSite.start
-
 
 def make_capture_random_bound_port_web_tcpsite_start(queue: asyncio.Queue):
     async def mock_start(site: aiohttp.web.TCPSite, *args, **kwargs):
         nonlocal queue
         await old_web_tcpsite_start(site, *args, **kwargs)
         await queue.put(site._server.sockets[0].getsockname()[1])
-
     return mock_start
-
 
 async def service_run_and_capture_port(queue: asyncio.Queue, **kwargs):
     mock_start = make_capture_random_bound_port_web_tcpsite_start(queue)
     with unittest.mock.patch.object(aiohttp.web.TCPSite, "start", new=mock_start):
         await service.run(**kwargs)
-
 
 if 0:
     TEST_DID = "did:web:alice.test"
@@ -46,7 +40,6 @@ else:
     TEST_HANDLE = "local.dev.retr0.id"
     TEST_PASSWORD = "lol"
 TEST_PRIVKEY = crypto.keygen_p256()
-
 
 @pytest.fixture
 async def test_pds(aiolib):
@@ -111,17 +104,14 @@ async def test_pds(aiolib):
                 except asyncio.CancelledError:
                     pass
 
-
 @pytest.fixture
 async def s(aiolib):
     async with aiohttp.ClientSession() as s:
         yield s
 
-
 @pytest.fixture
 def pds_host(test_pds) -> str:
     return test_pds.endpoint
-
 
 async def test_hello_world(s, pds_host):
     async with s.get(pds_host + "/") as r:
@@ -129,10 +119,8 @@ async def test_hello_world(s, pds_host):
         print(r)
         assert "Hello" in r
 
-
 async def test_describeServer(s, pds_host):
     async with s.get(pds_host + "/xrpc/com.atproto.server.describeServer") as r:
         print(await r.json())
-
 
 # Add other test cases as needed
