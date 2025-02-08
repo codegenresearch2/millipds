@@ -123,4 +123,4 @@ async def test_describeServer(s, pds_host):
     async with s.get(pds_host + "/xrpc/com.atproto.server.describeServer") as r:
         print(await r.json())
 
-# Add other test cases as needed
+# Add more test cases as needed
