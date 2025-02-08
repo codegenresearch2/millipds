@@ -53,7 +53,7 @@ class DIDResolver:
         now = int(time.time())
         row = db.con.execute(
             "SELECT doc FROM did_cache WHERE did=? AND expires_at<?", (did, now))
-.fetchone()
+            .fetchone()
 
         # cache hit
         if row is not None:
