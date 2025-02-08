@@ -25,7 +25,7 @@ def authenticated(handler):
 
         # Validate the JWT token
         db = get_db(request)
-        if not db.config['jwt_access_secret'] or not db.config['pds_did']:
+        if not db.config.get('jwt_access_secret') or not db.config.get('pds_did'):
             raise web.HTTPUnauthorized(text='Configuration incomplete. Missing JWT access secret or PDS DID.')
 
         try:
