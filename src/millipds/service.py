@@ -21,11 +21,16 @@ def initialize_database():
 
 # Update configuration
 async def update_config(key: str, value: str) -> None:
-    conn = sqlite3.connect('config.db')
-    cursor = conn.cursor()
-    cursor.execute('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)', (key, value))
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('config.db')
+        cursor = conn.cursor()
+        cursor.execute('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)', (key, value))
+        conn.commit()
+    except sqlite3.Error as e:
+        logger.error(f'Database error: {e}')
+    finally:
+        if conn:
+            conn.close()
 
 # Service runner
 async def service_run_and_capture_port(service_command: list, queue: asyncio.Queue) -> None:
