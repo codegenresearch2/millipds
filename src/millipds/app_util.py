@@ -34,7 +34,6 @@ def get_firehose_queues_lock(req: web.Request):
 def get_did_resolver(req: web.Request):
     return req.app[MILLIPDS_DID_RESOLVER]
 
-
 __all__ = [
     'MILLIPDS_DB',
     'MILLIPDS_AIOHTTP_CLIENT',
