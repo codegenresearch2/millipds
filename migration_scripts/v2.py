@@ -19,7 +19,7 @@ with apsw.Connection(static_config.MAIN_DB_PATH) as con:
             doc TEXT,
             created_at INTEGER NOT NULL,
             expires_at INTEGER NOT NULL
-        )"
+        )"""
     )
 
     # Create the handle_cache table
@@ -30,10 +30,13 @@ with apsw.Connection(static_config.MAIN_DB_PATH) as con:
             did TEXT,
             created_at INTEGER NOT NULL,
             expires_at INTEGER NOT NULL
-        )"
+        )"""
     )
 
     # Update the version in the config
     con.execute("UPDATE config SET db_version=2")
 
 print("v1 -> v2 Migration successful")
+
+# Future improvement: revisit migration handling
+# This is a placeholder comment indicating a future improvement.
