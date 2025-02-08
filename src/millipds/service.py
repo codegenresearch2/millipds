@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 routes = web.RouteTableDef()
 
 @routes.get('/')
-async def main_route(request):
+async def main_route(request: web.Request) -> web.Response:
     return web.Response(text='Hello, world!')
 
 # Middleware to inject security headers
 async def security_headers_middleware(app, handler):
-    async def middleware_handler(request):
+    async def middleware_handler(request: web.Request) -> web.Response:
         response = await handler(request)
         response.headers.setdefault('X-Frame-Options', 'DENY')
         response.headers.setdefault('X-Content-Type-Options', 'nosniff')
@@ -29,7 +29,7 @@ app = web.Application(middlewares=[security_headers_middleware])
 app.router.add_routes(routes)
 
 # Function to run the service and capture the port
-async def service_run_and_capture_port(queue):
+async def service_run_and_capture_port(queue: asyncio.Queue):
     # Simulate running the service and capturing the port
     # Replace this with actual service running logic
     port = 8080
