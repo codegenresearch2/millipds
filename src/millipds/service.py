@@ -78,9 +78,8 @@ https://github.com/DavidBuchanan314/millipds
     return web.Response(text=msg)
 
 
-@routes.get(
-    '/.well-known/did.json'
-) # serve this server's did:web document (nb: reference PDS impl doesn't do this, hard to know the right thing to do)
+@routes.get('/.well-known/did.json')
+# serve this server's did:web document (nb: reference PDS impl doesn't do this, hard to know the right thing to do)
 async def well_known_did_web(request: web.Request):
     cfg = get_db(request).config
     return web.json_response(
@@ -103,10 +102,7 @@ async def well_known_did_web(request: web.Request):
 @routes.get('/robots.txt')
 async def robots_txt(request: web.Request):
     return web.Response(
-        text="""\n# this is an atproto pds. please crawl it.
-
-User-Agent: *
-Allow: /
+        text="""\n# this is an atproto pds. please crawl it.\n\nUser-Agent: *\nAllow: /
 """
 
     )
@@ -281,7 +277,7 @@ async def server_get_service_auth(request: web.Request):
                     'exp': int(time.time()) + 60,
                 },
                 signing_key,
-                algorithm=crypto.jwt_signature_alg_for_pem(signing_key),
+                algorithm='HS256',
             )
         }
     )
