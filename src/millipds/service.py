@@ -1,9 +1,13 @@
 import asyncio
 import aiohttp
 from aiohttp import web
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 async def main(request):
-    # Your main function logic here
     return web.Response(text='Hello, world!')
 
 async def init():
