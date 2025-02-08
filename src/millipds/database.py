@@ -12,13 +12,12 @@ class DBBlockStore(BlockStore):
     def __init__(self, db: 'Database', repo: str) -> None:
         self.db = db
         self.user_id = self.db.con.execute(
-            "SELECT id FROM user WHERE did=?", (repo,)
+            "SELECT id FROM user WHERE did=?", (repo,))
         ).fetchone()[0]
 
     def get_block(self, key: bytes) -> bytes:
         row = self.db.con.execute(
-            "SELECT value FROM mst WHERE repo=? AND cid=?", (self.user_id, key)
-        ).fetchone()
+            "SELECT value FROM mst WHERE repo=? AND cid=?", (self.user_id, key))
         if row is None:
             raise KeyError("block not found in db")
         return row[0]
@@ -33,8 +32,7 @@ class Database:
         try:
             if self.config['db_version'] != static_config.MILLIPDS_DB_VERSION:
                 raise Exception(
-                    'unrecognised db version (TODO: db migrations)?'
-                )
+                    'unrecognised db version (TODO: db migrations)?')
         except apsw.SQLError as e:
             if 'no such table' not in str(e):
                 raise
@@ -48,7 +46,7 @@ class Database:
                 apsw.SQLITE_OPEN_READONLY
                 if readonly
                 else apsw.SQLITE_OPEN_READWRITE | apsw.SQLITE_OPEN_CREATE
-            ),
+            )
         )
 
     def _init_tables(self) -> None:
@@ -62,10 +60,10 @@ class Database:
                 bsky_appview_pfx TEXT,
                 bsky_appview_did TEXT,
                 jwt_access_secret TEXT NOT NULL
-            )"
-        )
+            )
+            ''')
         self.con.execute(
-            "INSERT INTO config(\n                db_version,\n                jwt_access_secret\n            ) VALUES (?, ?)",
+            "INSERT INTO config(db_version, jwt_access_secret) VALUES (?, ?)",
             (static_config.MILLIPDS_DB_VERSION, secrets.token_hex())
         )
         self.con.execute(
@@ -169,8 +167,7 @@ class Database:
 
     def verify_account_login(self, did_or_handle: str, password: str) -> Tuple[str, str, str, str]:
         row = self.con.execute(
-            'SELECT did, handle, pw_hash FROM user WHERE did=? OR handle=?', (did_or_handle, did_or_handle)
-        ).fetchone()
+            'SELECT did, handle, pw_hash FROM user WHERE did=? OR handle=?', (did_or_handle, did_or_handle))
         if row is None:
             raise KeyError('no account found for did')
         did, handle, pw_hash = row
