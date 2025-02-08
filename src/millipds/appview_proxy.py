@@ -19,6 +19,7 @@ SERVICE_ROUTES = {
 }
 
 
+@authenticated
 async def service_proxy(request: web.Request, service: Optional[str] = None):
     lxm = request.path.rpartition('/')[2].partition('?')[0]
     db = get_db(request)
@@ -55,6 +56,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
         headers=auth_headers,
     ) as r:
         body_bytes = await r.read()
+        logger.info(f'Proxied lxm: {lxm}')
         return web.Response(
             body=body_bytes,
             content_type=r.content_type,
