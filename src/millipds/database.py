@@ -12,8 +12,7 @@ class DBBlockStore(BlockStore):
     def __init__(self, db: 'Database', repo: str) -> None:
         self.db = db
         self.user_id = self.db.con.execute(
-            "SELECT id FROM user WHERE did=?", (repo,))
-        ).fetchone()[0]
+            "SELECT id FROM user WHERE did=?", (repo,)).fetchone()[0]
 
     def get_block(self, key: bytes) -> bytes:
         row = self.db.con.execute(
@@ -60,8 +59,8 @@ class Database:
                 bsky_appview_pfx TEXT,
                 bsky_appview_did TEXT,
                 jwt_access_secret TEXT NOT NULL
-            )
-            ''')
+            )"
+        )
         self.con.execute(
             "INSERT INTO config(db_version, jwt_access_secret) VALUES (?, ?)",
             (static_config.MILLIPDS_DB_VERSION, secrets.token_hex())
@@ -120,8 +119,8 @@ class Database:
         )
 
         cfg = self.con.execute(
-            f"SELECT {', '.join(config_fields)} FROM config"
-        ).fetchone()
+            f"SELECT {', '.join(config_fields)} FROM config")
+            .fetchone()
 
         return dict(zip(config_fields, cfg))
 
@@ -151,8 +150,7 @@ class Database:
                 'prev': None
             }
             initial_commit['sig'] = crypto.raw_sign(
-                privkey, cbrrr.encode_dag_cbor(initial_commit)
-            )
+                privkey, cbrrr.encode_dag_cbor(initial_commit))
             commit_bytes = cbrrr.encode_dag_cbor(initial_commit)
             commit_cid = cbrrr.CID.cidv1_dag_cbor_sha256_32_from(commit_bytes)
             self.con.execute(
@@ -162,8 +160,7 @@ class Database:
             )
             user_id = self.con.last_insert_rowid()
             self.con.execute(
-                'INSERT INTO mst(repo, cid, since, value) VALUES (?, ?, ?, ?)', (user_id, bytes(empty_mst.cid), tid, empty_mst.serialised)
-            )
+                'INSERT INTO mst(repo, cid, since, value) VALUES (?, ?, ?, ?)', (user_id, bytes(empty_mst.cid), tid, empty_mst.serialised))
 
     def verify_account_login(self, did_or_handle: str, password: str) -> Tuple[str, str, str, str]:
         row = self.con.execute(
