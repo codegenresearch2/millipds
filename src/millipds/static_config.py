@@ -31,4 +31,4 @@ DID_CACHE_TTL = 60 * 60
 DID_CACHE_ERROR_TTL = 60 * 5
 
 # Host for the PLC directory, if applicable
-PLC_DIRECTORY_HOST = "example.com"
+PLC_DIRECTORY_HOST = "https://plc.directory"
