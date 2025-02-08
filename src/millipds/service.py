@@ -1,1 +1,2 @@
-Here is a shorter version of the code snippet.
+def main():
+    print('Hello, world!')
