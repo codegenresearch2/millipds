@@ -32,7 +32,9 @@ async def service_run_and_capture_port(service_command: list, queue: asyncio.Que
     process = await asyncio.create_subprocess_exec(*service_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
     if process.returncode != 0:
-        raise RuntimeError(f'Service failed with error: {stderr.decode()}')
+        logger.error(f'Service failed with error: {stderr.decode()}')
+        await queue.put(None)
+        return
     port = stdout.decode().strip()
     await queue.put(port)
 
@@ -61,7 +63,10 @@ async def main(request: Request) -> Response:
         service_run_and_capture_port(service_command, queue),
         update_config('service_port', await queue_get_task(queue))
     )
-    return web.Response(text='Service started')
+    port = await queue_get_task(queue)
+    if port is None:
+        return web.Response(text='Service failed to start', status=500)
+    return web.Response(text='Service started on port ' + port)
 
 # Setup the web application
 app = web.Application(middlewares=[security_headers_middleware])
