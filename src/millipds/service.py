@@ -65,7 +65,7 @@ async def atproto_service_proxy_middleware(request: web.Request, handler):
         return web.Response(status=500, text="Internal Server Error")
 
 @routes.get("/")
-async def hello(request: web.Request):
+async def hello(request: web.Request) -> web.Response:
     """
     Handler for the root endpoint.
     
