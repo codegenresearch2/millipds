@@ -24,7 +24,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     
     if service:
         service_did, _, fragment = service.partition("#")
-        did_document = await did_resolver.resolve(service_did)
+        did_document = await get_did_resolver(request).resolve_with_db_cache(db, service_did)
         if not did_document:
             return web.HTTPInternalServerError(text="Service not found")
         
@@ -59,7 +59,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     }  # TODO: cache this?
     if request.method == "GET":
         async with get_client(request).get(
-            service_route,
+            service_route + request.path,
             params=request.query,
             headers=auth_headers,
         ) as r:
@@ -70,7 +70,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     elif request.method == "POST":
         request_body = await request.read()  # TODO: streaming?
         async with get_client(request).post(
-            service_route,
+            service_route + request.path,
             data=request_body,
             headers=(auth_headers | {"Content-Type": request.content_type}),
         ) as r:
