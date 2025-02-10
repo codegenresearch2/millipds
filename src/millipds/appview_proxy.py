@@ -30,7 +30,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
         
         service_route = None
         for entry in did_doc.get("service", []):
-            if entry.get("id") == service:
+            if entry.get("id") == service_did:
                 service_route = entry.get("serviceEndpoint")
                 if fragment:
                     service_route += "#" + fragment
