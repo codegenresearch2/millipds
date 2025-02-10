@@ -14,6 +14,7 @@ from aiohttp import web
 import jwt
 
 import cbrrr
+from typing import Optional
 
 from . import static_config
 from . import database
