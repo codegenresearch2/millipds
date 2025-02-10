@@ -12,8 +12,8 @@ from .did import DIDResolver
 
 logger = logging.getLogger(__name__)
 
-# Add DIDResolver instance
-did_resolver = DIDResolver()
+# Ensure DIDResolver is instantiated with the necessary session argument
+did_resolver = DIDResolver(session=get_client(request))
 
 @authenticated
 async def service_proxy(request: web.Request, service: Optional[str] = None):
