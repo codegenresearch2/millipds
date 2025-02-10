@@ -12,18 +12,8 @@ from .did import DIDResolver
 
 logger = logging.getLogger(__name__)
 
-# TODO: this should be done via actual DID resolution, not hardcoded!
-SERVICE_ROUTES = {
-    "did:web:api.bsky.chat#bsky_chat": "https://api.bsky.chat",
-    "did:web:discover.bsky.app#bsky_fg": "https://discover.bsky.app",
-    "did:plc:ar7c4by46qjdydhdevvrndac#atproto_labeler": "https://mod.bsky.app",
-}
-
-# Add DIDResolver import
-from . import static_config
-
 # Add DIDResolver instance
-did_resolver = DIDResolver(static_config.PLC_DIRECTORY_HOST)
+did_resolver = DIDResolver()
 
 @authenticated
 async def service_proxy(request: web.Request, service: Optional[str] = None):
@@ -34,11 +24,20 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     # TODO: verify valid lexicon method?
     logger.info(f"proxying lxm {lxm}")
     db = get_db(request)
+    
     if service:
-        service_did = service.partition("#")[0]
-        service_route = SERVICE_ROUTES.get(service)
-        if service_route is None:
-            return web.HTTPBadRequest(f"unable to resolve service {service!r}")
+        did_document = await did_resolver.resolve(service.partition("#")[0])
+        if not did_document:
+            return web.HTTPNotFound(text="Service not found")
+        
+        service_route = None
+        for entry in did_document.get("service", []):
+            if entry.get("id") == service:
+                service_route = entry.get("serviceEndpoint")
+                break
+        
+        if not service_route:
+            return web.HTTPBadRequest(text="Unable to resolve service")
     else:
         service_did = db.config["bsky_appview_did"]
         service_route = db.config["bsky_appview_pfx"]
