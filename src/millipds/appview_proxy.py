@@ -12,9 +12,6 @@ from .did import DIDResolver
 
 logger = logging.getLogger(__name__)
 
-# Ensure DIDResolver is instantiated with the necessary session argument
-did_resolver = DIDResolver(session=get_client(request))
-
 @authenticated
 async def service_proxy(request: web.Request, service: Optional[str] = None):
     """
@@ -37,7 +34,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
                 break
         
         if not service_route:
-            return web.HTTPBadRequest(text="Unable to resolve service")
+            return web.HTTPBadRequest(text=f"Unable to resolve service {service!r}")
     else:
         service_did = db.config["bsky_appview_did"]
         service_route = db.config["bsky_appview_pfx"]
