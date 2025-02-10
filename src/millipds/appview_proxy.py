@@ -33,7 +33,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
         service_did = service.partition("#")[0]
         service_route = SERVICE_ROUTES.get(service)
         if service_route is None:
-            return web.HTTPBadRequest(f"unable to resolve service {service!r}")
+            return web.HTTPBadRequest(text=f"unable to resolve service {service!r}")
     else:
         service_did = db.config["bsky_appview_did"]
         service_route = db.config["bsky_appview_pfx"]
