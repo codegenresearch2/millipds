@@ -71,6 +71,7 @@ class DIDResolver:
 		)
 		try:
 			doc = await self.resolve_uncached(did)
+			logger.info(f"DID {did} resolved successfully.")
 		except Exception as e:
 			logger.exception(f"Error resolving DID {did}: {e}")
 			doc = None
@@ -136,16 +137,3 @@ class DIDResolver:
 		return await self._get_json_with_limit(
 			f"{self.plc_directory_host}/{did}", self.DIDDOC_LENGTH_LIMIT
 		)
-
-
-async def main() -> None:
-	async with aiohttp.ClientSession() as session:
-		resolver = DIDResolver(session)
-		print(await resolver.resolve_uncached("did:web:retr0.id"))
-		print(
-			await resolver.resolve_uncached("did:plc:vwzwgnygau7ed7b7wt5ux7y2")
-		)
-
-
-if __name__ == "__main__":
-	asyncio.run(main())
