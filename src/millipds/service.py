@@ -4,6 +4,10 @@ from aiohttp import web
 import logging
 import sqlite3
 from typing import Optional, Set, Tuple
+import jwt
+import cbrrr
+import importlib.metadata
+from docopt import docopt
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -70,7 +74,25 @@ async def setup_app(db: sqlite3.Connection, client: aiohttp.ClientSession):
 @web.route('GET', '/')
 async def hello(request: web.Request):
     """Handle the root endpoint."""
-    return web.Response(text="Hello! This is an ATProto PDS instance, running millipds v{}".format(importlib.metadata.version("millipds")))
+    version = importlib.metadata.version("millipds")
+    msg = f"""
+                          ,dPYb, ,dPYb,                           8I
+                          IP'`Yb IP'`Yb                           8I
+                     gg   I8  8I I8  8I  gg                       8I
+                     ""   I8  8' I8  8'  ""                       8I
+  ,ggg,,ggg,,ggg,    gg   I8 dP  I8 dP   gg   gg,gggg,      ,gggg,8I     ,gg,
+ ,8" "8P" "8P" "8,   88   I8dP   I8dP    88   I8P"  "Yb    dP"  "Y8I   ,8'8,
+ I8   8I   8I   8I   88   I8P    I8P     88   I8'    ,8i  i8'    ,8I  ,8'  Yb
+,dP   8I   8I   Yb,_,88,_,d8b,_ ,d8b,_ _,88,_,I8 _  ,d8' ,d8,   ,d8b,,8'_   8)
+8P'   8I   8I   `Y88P""Y88P'"Y888P'"Y888P""Y8PI8 YY88888PP"Y8888P"`Y8P' "YY8P8P
+                                              I8
+                                              I8
+                                              I8
+                                              I8
+                                              I8
+                                              I8
+"""
+    return web.Response(text=msg)
 
 # Route to handle .well-known/did.json endpoint
 @web.route('GET', '/.well-known/did.json')
