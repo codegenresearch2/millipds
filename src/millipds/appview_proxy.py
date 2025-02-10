@@ -23,9 +23,10 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     db = get_db(request)
     
     if service:
-        did_document = await did_resolver.resolve(service.partition("#")[0])
+        service_did, _, fragment = service.partition("#")
+        did_document = await did_resolver.resolve(service_did)
         if not did_document:
-            return web.HTTPNotFound(text="Service not found")
+            return web.HTTPInternalServerError(text="Service not found")
         
         service_route = None
         for entry in did_document.get("service", []):
@@ -34,7 +35,10 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
                 break
         
         if not service_route:
-            return web.HTTPBadRequest(text=f"Unable to resolve service {service!r}")
+            return web.HTTPInternalServerError(text=f"Unable to resolve service {service!r}")
+        
+        if fragment:
+            service_route += "#" + fragment
     else:
         service_did = db.config["bsky_appview_did"]
         service_route = db.config["bsky_appview_pfx"]
@@ -55,7 +59,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     }  # TODO: cache this?
     if request.method == "GET":
         async with get_client(request).get(
-            service_route + request.path,
+            service_route,
             params=request.query,
             headers=auth_headers,
         ) as r:
@@ -66,7 +70,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     elif request.method == "POST":
         request_body = await request.read()  # TODO: streaming?
         async with get_client(request).post(
-            service_route + request.path,
+            service_route,
             data=request_body,
             headers=(auth_headers | {"Content-Type": request.content_type}),
         ) as r:
