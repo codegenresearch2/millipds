@@ -27,15 +27,10 @@ def authenticated(handler):
         # Validate the token with signature verification
         db = get_db(request)
         try:
-            # Decode the token without verifying the signature to inspect the header
-            unverified_header = jwt.get_unverified_header(token)
-            algorithm = unverified_header.get("alg")
-            
-            # Verify the token with the appropriate algorithm
             payload: dict = jwt.decode(
                 jwt=token,
                 key=db.config["jwt_access_secret"],
-                algorithms=[algorithm],
+                algorithms=["HS256"],
                 audience=db.config["pds_did"],
                 options={
                     "require": ["exp", "iat", "scope"],
@@ -46,11 +41,7 @@ def authenticated(handler):
             )
         except jwt.exceptions.ExpiredSignatureError:
             raise web.HTTPUnauthorized(text="Token has expired")
-        except jwt.exceptions.InvalidAlgorithmError:
-            raise web.HTTPUnauthorized(text="Invalid token algorithm")
-        except jwt.exceptions.InvalidAudienceError:
-            raise web.HTTPUnauthorized(text="Invalid audience in token")
-        except jwt.exceptions.PyJWTError:
+        except jwt.exceptions.InvalidTokenError:
             raise web.HTTPUnauthorized(text="Invalid JWT")
 
         # Check the scope of the token
