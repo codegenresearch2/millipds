@@ -80,9 +80,6 @@ class Database:
 		"Cursors on the same Connection are not isolated from each other.
 		Anything done on one cursor is immediately visible to all other Cursors
 		on the same connection. This still applies if you start transactions.
-		Connections are isolated from each other with cursors on other
-		connections not seeing changes until they are committed."
-
 		therefore we frequently spawn new connections when we need an isolated cursor
 		"""
 		return apsw.Connection(
@@ -314,7 +311,7 @@ class Database:
 				(
 					did,
 					handle,
-					b'{"preferences":[]}',
+					b"{}",
 					pw_hash,
 					privkey_pem,
 					bytes(commit_cid),
@@ -369,8 +366,7 @@ class Database:
 		return row[0]
 
 	def list_repos(
-		self,
-	) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
+		) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
 		return [
 			(did, cbrrr.CID(head), rev)
 			for did, head, rev in self.con.execute(
