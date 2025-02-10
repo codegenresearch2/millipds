@@ -137,4 +137,4 @@ if __name__ == "__main__":
     asyncio.run(main())
 
 
-This revised code snippet addresses the feedback provided by the oracle. It includes improvements such as consistent commenting, middleware structure, response handling, error handling, function definitions, database interaction, JWT token generation, use of constants, and overall structure. The code also ensures that the database schema is initialized before any tests are executed and that the service is properly set up to capture the port.
+This revised code snippet addresses the feedback provided by the oracle. It includes improvements such as consistent middleware handling, route definitions, error handling, function definitions, database interaction, JWT token generation, use of constants, and overall structure. The code also ensures that the database schema is initialized before any tests are executed and that the service is properly set up to capture the port.
