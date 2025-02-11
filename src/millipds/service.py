@@ -9,7 +9,19 @@ app = web.Application(middlewares=[cors_middleware(allow_all=True)])
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Define routes using web.RouteTableDef
+# Define a middleware for handling service proxying and injecting security headers
+async def service_proxy_middleware(app, handler):
+    async def middleware_handler(request):
+        # Implement service proxying logic here
+        response = await handler(request)
+        # Implement security headers injection here
+        return response
+    return middleware_handler
+
+# Add the middleware to the application
+app.middlewares.append(service_proxy_middleware)
+
+# Define routes using web.RouteTableDef()
 routes = web.RouteTableDef()
 
 # Define a route for the root endpoint
@@ -31,15 +43,6 @@ async def handle_another_example(request):
 
 # Add routes to the application
 app.router.add_routes(routes)
-
-# Middleware to log request information
-@app.middleware
-async def log_request_info(app, handler):
-    async def middleware_handler(request):
-        logger.info(f'Request Method: {request.method}, Request Path: {request.path}')
-        response = await handler(request)
-        return response
-    return middleware_handler
 
 # Error handling
 @app.exception_handler(web.HTTPNotFound)
