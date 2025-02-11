@@ -150,7 +150,6 @@ class Database:
 			) STRICT
 			"""
 		)
-		# TODO: index on timestamp for efficient purging of old events.
 
 		# repo storage stuff
 		self.con.execute(
@@ -412,8 +411,7 @@ class Database:
 		return row[0]
 
 	def list_repos(
-		self,
-	) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
+		) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
 		return [
 			(did, cbrrr.CID(head), rev)
 			for did, head, rev in self.con.execute(
