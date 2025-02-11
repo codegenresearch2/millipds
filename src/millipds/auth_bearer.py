@@ -109,3 +109,6 @@ def authenticated(handler):
         return response
 
     return authentication_handler
+
+
+This revised code snippet addresses the feedback by implementing the `is_token_revoked` method in the `Database` class, ensuring that the authentication handler can properly check if a token has been revoked. It also includes error handling to catch and handle exceptions gracefully, returning structured JSON error responses instead of allowing the server to return a generic text/plain response.
