@@ -8,6 +8,7 @@ import dataclasses
 import aiohttp
 import aiohttp.web
 import jwt
+import sqlite3
 
 from millipds import service
 from millipds import database
