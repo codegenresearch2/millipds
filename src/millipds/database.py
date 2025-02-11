@@ -7,10 +7,38 @@ from typing import Optional, Dict, List, Tuple
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+class DBBlockStore(apsw.Connection):
+    def __init__(self, db: apsw.Connection, repo: str):
+        super().__init__(db.path)
+        self.db = db
+        self.user_id = self.execute(
+            "SELECT id FROM user WHERE did=?", (repo,)
+        ).fetchone()[0]
+
+    def get_block(self, key: bytes) -> bytes:
+        row = self.execute(
+            "SELECT value FROM mst WHERE repo=? AND cid=?", (self.user_id, key)
+        ).fetchone()
+        if row is None:
+            raise KeyError("block not found in db")
+        return row[0]
+
+    def put_block(self, key: bytes, value: bytes):
+        self.execute(
+            "INSERT INTO mst (repo, cid, since, value) VALUES (?, ?, ?, ?)",
+            (self.user_id, key, '', value)
+        )
+
+    def del_block(self, key: bytes):
+        self.execute(
+            "DELETE FROM mst WHERE repo=? AND cid=?", (self.user_id, key)
+        )
+
 class Database:
-    def __init__(self, db_path: str):
-        self.db_path = db_path
-        self.conn = apsw.Connection(db_path)
+    def __init__(self, path: str):
+        self.path = path
+        self.conn = apsw.Connection(path)
+        self.pw_hasher = argon2.PasswordHasher()
         self._init_tables()
 
     def _init_tables(self):
@@ -117,8 +145,8 @@ class Database:
         return result is not None
 
     def create_user(self, did: str, handle: str, password: str):
+        pw_hash = self.pw_hasher.hash(password)
         cursor = self.conn.cursor()
-        pw_hash = argon2.hash_password(password.encode(), argon2.DEFAULT_PARAMS)
         cursor.execute('''
             INSERT INTO user (did, handle, prefs, pw_hash, signing_key, head, rev, commit_bytes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -158,12 +186,13 @@ class Database:
 
 
 This updated code snippet addresses the feedback by:
-1. Switching to `apsw` for SQLite interactions.
+1. Creating a `DBBlockStore` class that inherits from `apsw.Connection` to adapt the database for a specific library.
 2. Creating new connections for isolated cursors.
 3. Including a configuration table and checking for its existence.
 4. Integrating password hashing within the database class.
-5. Using a dedicated logger for the module.
-6. Grouping related methods for better readability.
-7. Adding comprehensive type hints.
-8. Handling exceptions appropriately.
-9. Documenting methods for better understanding.
+5. Using type hints extensively for method parameters and return types.
+6. Handling exceptions appropriately.
+7. Documenting methods clearly to explain their purpose and usage.
+8. Modularizing code for better organization and reusability.
+9. Using logging strategically to provide insights into the application's state and actions.
+10. Carefully managing data formats for database interactions.
