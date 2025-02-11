@@ -1,10 +1,8 @@
-from typing import Tuple
-import logging
-import hashlib
 from aiohttp import web
 import cbrrr
 import apsw
 import asyncio
+import logging
 
 from . import repo_ops
 from .appview_proxy import service_proxy
@@ -77,42 +75,136 @@ async def repo_create_record(request: web.Request):
         }
     )
 
-# Additional functions implementation here...
+@routes.post("/xrpc/com.atproto.repo.putRecord")
+@authenticated
+async def repo_put_record(request: web.Request):
+    orig = await request.json()
+    res = await apply_writes_and_emit_firehose(
+        request,
+        {
+            "$type": "com.atproto.repo.applyWrites#update",
+            "repo": orig["repo"],
+            "validate": orig.get("validate"),
+            "swapCommit": orig.get("swapCommit"),
+            "writes": [
+                {
+                    "$type": "com.atproto.repo.applyWrites#update",
+                    "collection": orig["collection"],
+                    "rkey": orig["rkey"],
+                    "validate": orig.get("validate"),
+                    "swapRecord": orig.get("swapRecord"),
+                    "value": orig["record"],
+                }
+            ],
+        },
+    )
+    return web.json_response(
+        {
+            "commit": res["commit"],
+            "uri": res["results"][0]["uri"],
+            "cid": res["results"][0]["cid"],
+            "validationStatus": res["results"][0]["validationStatus"],
+        }
+    )
 
-@routes.get("/xrpc/com.atproto.repo.describeRepo")
-async def repo_describe_repo(request: web.Request):
+@routes.post("/xrpc/com.atproto.repo.deleteRecord")
+@authenticated
+async def repo_delete_record(request: web.Request):
+    orig = await request.json()
+    res = await apply_writes_and_emit_firehose(
+        request,
+        {
+            "$type": "com.atproto.repo.applyWrites#delete",
+            "repo": orig["repo"],
+            "validate": orig.get("validate"),
+            "swapCommit": orig.get("swapCommit"),
+            "writes": [
+                {
+                    "$type": "com.atproto.repo.applyWrites#delete",
+                    "collection": orig["collection"],
+                    "rkey": orig["rkey"],
+                    "validate": orig.get("validate"),
+                    "swapRecord": orig.get("swapRecord"),
+                }
+            ],
+        },
+    )
+    return web.json_response({"commit": res["commit"]})
+
+@routes.get("/xrpc/com.atproto.repo.getRecord")
+async def repo_get_record(request: web.Request):
     if "repo" not in request.query:
         raise web.HTTPBadRequest(text="missing repo")
+    if "collection" not in request.query:
+        raise web.HTTPBadRequest(text="missing collection")
+    if "rkey" not in request.query:
+        raise web.HTTPBadRequest(text="missing rkey")
     did_or_handle = request.query["repo"]
-    with get_db(request).new_con(readonly=True) as con:
-        user_id, did, handle = con.execute(
-            "SELECT id, did, handle FROM user WHERE did=? OR handle=?",
-            (did_or_handle, did_or_handle),
-        ).fetchone()
+    collection = request.query["collection"]
+    rkey = request.query["rkey"]
+    cid_in = request.query.get("cid")
+    db = get_db(request)
+    row = db.con.execute(
+        "SELECT cid, value FROM record WHERE repo=(SELECT id FROM user WHERE did=? OR handle=?) AND nsid=? AND rkey=?",
+        (did_or_handle, did_or_handle, collection, rkey),
+    ).fetchone()
+    if row is None:
+        return await service_proxy(request)
+    cid_out, value = row
+    cid_out = cbrrr.CID(cid_out)
+    if cid_in is not None:
+        if cbrrr.CID.decode(cid_in) != cid_out:
+            raise web.HTTPNotFound(text="record not found with matching CID")
+    return web.json_response(
+        {
+            "uri": f"at://{did_or_handle}/{collection}/{rkey}",
+            "cid": cid_out.encode(),
+            "value": cbrrr.decode_dag_cbor(value, atjson_mode=True),
+        }
+    )
 
-        return web.json_response(
+@routes.get("/xrpc/com.atproto.repo.listRecords")
+async def repo_list_records(request: web.Request):
+    if "repo" not in request.query:
+        raise web.HTTPBadRequest(text="missing repo")
+    if "collection" not in request.query:
+        raise web.HTTPBadRequest(text="missing collection")
+    limit = int(request.query.get("limit", 50))
+    if limit < 1 or limit > 100:
+        raise web.HTTPBadRequest(text="limit out of range")
+    reverse = request.query.get("reverse") == "true"
+    cursor = request.query.get("cursor", "" if reverse else "\xff")
+    did_or_handle = request.query["repo"]
+    collection = request.query["collection"]
+    records = []
+    db = get_db(request)
+    for rkey, cid, value in db.con.execute(
+        f"""
+        SELECT rkey, cid, value
+        FROM record
+        WHERE repo=(SELECT id FROM user WHERE did=? OR handle=?)
+            AND nsid=? AND rkey{"<" if reverse else ">"}?
+        ORDER BY rkey {"ASC" if reverse else "DESC"}
+        LIMIT ?
+        """,
+        (did_or_handle, did_or_handle, collection, cursor, limit),
+    ):
+        records.append(
             {
-                "handle": handle,
-                "did": did,
-                "didDoc": {},  # TODO
-                "collections": [
-                    row[0]
-                    for row in con.execute(
-                        "SELECT DISTINCT(nsid) FROM record WHERE repo=?",
-                        (user_id,),
-                    )  # TODO: is this query efficient? do we want an index?
-                ],
-                "handleIsCorrect": True,  # TODO
+                "uri": f"at://{did_or_handle}/{collection}/{rkey}",
+                "cid": cbrrr.CID(cid).encode(),
+                "value": cbrrr.decode_dag_cbor(value, atjson_mode=True),
             }
         )
-
-# Similar modifications for repo_get_record and repo_list_records functions
+    return web.json_response(
+        {"records": records} | ({"cursor": rkey} if len(records) == limit else {})
+    )
 
 @routes.post("/xrpc/com.atproto.repo.uploadBlob")
 @authenticated
 async def repo_upload_blob(request: web.Request):
     mime = request.headers.get("content-type", "application/octet-stream")
-    BLOCK_SIZE = 0x10000  # Comment about potential performance tweaks
+    BLOCK_SIZE = 0x10000
     db = get_db(request)
     db.con.execute(
         "INSERT INTO blob (repo, refcount) VALUES ((SELECT id FROM user WHERE did=?), 0)",
