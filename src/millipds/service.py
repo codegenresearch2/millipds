@@ -35,6 +35,11 @@ routes = web.RouteTableDef()
 # Middleware for ATProto service proxy
 @web.middleware
 async def atproto_service_proxy_middleware(request: web.Request, handler):
+    """
+    Middleware for handling ATProto service proxying.
+    If the 'atproto-proxy' header is present, the request is proxied to the specified service.
+    Otherwise, the request is handled by the normal handler.
+    """
     atproto_proxy = request.headers.get("atproto-proxy")
     if atproto_proxy:
         return await service_proxy(request, atproto_proxy)
@@ -51,6 +56,10 @@ async def atproto_service_proxy_middleware(request: web.Request, handler):
 # Route for the homepage
 @routes.get("/")
 async def hello(request: web.Request):
+    """
+    Route for the homepage.
+    Returns a welcome message with the version of millipds.
+    """
     version = importlib.metadata.version("millipds")
     msg = f"""\
                           ,dPYb, ,dPYb,
@@ -79,6 +88,10 @@ https://github.com/DavidBuchanan314/millipds
 # Route for the well-known DID document
 @routes.get("/.well-known/did.json")
 async def well_known_did_web(request: web.Request):
+    """
+    Route for the well-known DID document.
+    Returns the DID document for the PDS in JSON format.
+    """
     cfg = get_db(request).config
     return web.json_response({
         "@context": ["https://www.w3.org/ns/did/v1"],
@@ -93,6 +106,10 @@ async def well_known_did_web(request: web.Request):
 # Route for the robots.txt file
 @routes.get("/robots.txt")
 async def robots_txt(request: web.Request):
+    """
+    Route for the robots.txt file.
+    Returns the content of the robots.txt file.
+    """
     return web.Response(text="""\
 # this is an atproto pds. please crawl it.
 
@@ -103,31 +120,51 @@ Allow: /
 # Route for the favicon
 @routes.get("/favicon.ico")
 async def health(request: web.Request):
+    """
+    Route for the favicon.
+    Returns an SVG image as the favicon.
+    """
     return web.Response(text="""
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <text x="50%" y="0.95em" font-size="90" text-anchor="middle">🌐</text>
+    <text x="50%" y="0.95em" font-size="90" text-anchor="middle">ðŸŒ</text>
 </svg>
 """, content_type="image/svg+xml", headers={"Cache-Control": "max-age=864000"})
 
 # Route for the health check
 @routes.get("/xrpc/_health")
 async def health(request: web.Request):
+    """
+    Route for the health check.
+    Returns the version of millipds.
+    """
     version = importlib.metadata.version("millipds")
     return web.json_response({"version": f"millipds v{version}"})
 
 # Route for getting preferences (dummy response)
 @routes.get("/xrpc/app.bsky.actor.getPreferences")
 async def actor_get_preferences(request: web.Request):
+    """
+    Route for getting preferences.
+    Returns a dummy response with an empty preferences array.
+    """
     return web.json_response({"preferences": []})
 
 # Route for putting preferences (not implemented)
 @routes.post("/xrpc/app.bsky.actor.putPreferences")
 async def actor_put_preferences(request: web.Request):
+    """
+    Route for putting preferences.
+    Not implemented, returns an empty response.
+    """
     return web.Response()
 
 # Route for resolving a handle
 @routes.get("/xrpc/com.atproto.identity.resolveHandle")
 async def identity_resolve_handle(request: web.Request):
+    """
+    Route for resolving a handle.
+    Returns the DID associated with the handle.
+    """
     handle = request.query.get("handle")
     if handle is None:
         raise web.HTTPBadRequest(text="missing or invalid handle")
@@ -139,6 +176,10 @@ async def identity_resolve_handle(request: web.Request):
 # Route for describing the server
 @routes.get("/xrpc/com.atproto.server.describeServer")
 async def server_describe_server(request: web.Request):
+    """
+    Route for describing the server.
+    Returns the DID and available user domains of the server.
+    """
     return web.json_response({
         "did": get_db(request).config["pds_did"],
         "availableUserDomains": [],
@@ -147,6 +188,10 @@ async def server_describe_server(request: web.Request):
 # Route for creating a session
 @routes.post("/xrpc/com.atproto.server.createSession")
 async def server_create_session(request: web.Request):
+    """
+    Route for creating a session.
+    Returns the DID, handle, accessJwt, and refreshJwt for the authenticated user.
+    """
     try:
         req_json: dict = await request.json()
     except json.JSONDecodeError:
@@ -193,6 +238,10 @@ async def server_create_session(request: web.Request):
 @routes.post("/xrpc/com.atproto.identity.updateHandle")
 @authenticated
 async def identity_update_handle(request: web.Request):
+    """
+    Route for updating a handle.
+    Updates the handle for the authenticated user and broadcasts the changes to the firehose.
+    """
     req_json: dict = await request.json()
     handle = req_json.get("handle")
     if handle is None:
@@ -226,6 +275,10 @@ async def identity_update_handle(request: web.Request):
 @routes.get("/xrpc/com.atproto.server.getSession")
 @authenticated
 async def server_get_session(request: web.Request):
+    """
+    Route for getting session information.
+    Returns the handle, DID, email, and emailConfirmed for the authenticated user.
+    """
     return web.json_response({
         "handle": get_db(request).handle_by_did(request["authed_did"]),
         "did": request["authed_did"],
@@ -235,6 +288,10 @@ async def server_get_session(request: web.Request):
 
 # Function to construct the app
 def construct_app(routes, db: database.Database, client: aiohttp.ClientSession) -> web.Application:
+    """
+    Function to construct the app.
+    Sets up the middleware, routes, and app configuration.
+    """
     cors = cors_middleware(allow_all=True, expose_headers=["*"], allow_headers=["*"], allow_methods=["*"], allow_credentials=True, max_age=100_000_000)
 
     client.headers.update({"User-Agent": importlib.metadata.version("millipds")})
@@ -258,6 +315,10 @@ def construct_app(routes, db: database.Database, client: aiohttp.ClientSession) 
 
 # Function to run the app
 async def run(db: database.Database, client: aiohttp.ClientSession, sock_path: Optional[str], host: str, port: int):
+    """
+    Function to run the app.
+    Sets up the app runner, site, and starts the app.
+    """
     app = construct_app(routes, db, client)
     runner = web.AppRunner(app, access_log_format=static_config.HTTP_LOG_FMT)
     await runner.setup()
