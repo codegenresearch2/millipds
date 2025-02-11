@@ -136,7 +136,6 @@ async def test_describeServer(s, pds_host):
 
 
 async def test_createSession_no_args(s, pds_host):
-    # no args
     async with s.post(pds_host + "/xrpc/com.atproto.server.createSession") as r:
         assert r.status != 200
 
@@ -178,7 +177,6 @@ async def test_valid_logins(s, pds_host, login_data):
         token = r["accessJwt"]
         auth_headers = {"Authorization": "Bearer " + token}
 
-        # good auth
         async with s.get(
             pds_host + "/xrpc/com.atproto.server.getSession",
             headers=auth_headers,
@@ -186,7 +184,6 @@ async def test_valid_logins(s, pds_host, login_data):
             print(await r.json())
             assert r.status == 200
 
-        # bad auth
         async with s.get(
             pds_host + "/xrpc/com.atproto.server.getSession",
             headers={"Authorization": "Bearer " + token[:-1]},
@@ -194,7 +191,6 @@ async def test_valid_logins(s, pds_host, login_data):
             print(await r.text())
             assert r.status != 200
 
-        # bad auth
         async with s.get(
             pds_host + "/xrpc/com.atproto.server.getSession",
             headers={"Authorization": "Bearest"},
