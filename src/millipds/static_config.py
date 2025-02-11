@@ -3,7 +3,9 @@
 # (some of this stuff might want to be broken out into a proper config file, eventually)
 
 # Format for HTTP access logs
-HTTP_LOG_FMT = '%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Agent}i"'
+HTTP_LOG_FMT = (
+    '%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Agent}i"'
+)
 
 # Group name for the socket
 GROUPNAME = "millipds-sock"
@@ -36,4 +38,4 @@ DID_CACHE_TTL = 60 * 60  # 1 hour
 DID_CACHE_ERROR_TTL = 60 * 5  # 5 minutes
 
 # Host for the PLC directory
-PLC_DIRECTORY_HOST = "https://your_plc_directory_host"
+PLC_DIRECTORY_HOST = "https://plc.directory"
