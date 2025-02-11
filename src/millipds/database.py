@@ -35,7 +35,7 @@ class DBBlockStore(BlockStore):
 	def __init__(self, db: apsw.Connection, repo: str) -> None:
 		self.db = db
 		self.user_id = self.db.execute(
-			"SELECT id FROM handle_cache WHERE handle=?", (repo,)
+			"SELECT user_id FROM handle_cache WHERE handle=?", (repo,)
 		).fetchone()
 		if self.user_id is None:
 			raise ValueError(f"No user found with handle: {repo}")
@@ -69,12 +69,12 @@ class Database:
 				raise Exception(
 					"Unrecognized database version (TODO: db migrations?)"
 				)
-
-		except apsw.SQLError as e:  # no such table, so let's create it
-			if "no such table" not in str(e):
+		except apsw.SQLError as e:
+			if "no such table" in str(e):
+				with self.con:
+					self._init_tables()
+			else:
 				raise
-			with self.con:
-				self._init_tables()
 
 	def new_con(self, readonly=False):
 		"""
