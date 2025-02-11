@@ -3,6 +3,7 @@ from aiohttp import web
 import cbrrr
 import apsw
 import asyncio
+import hashlib
 import logging
 
 from . import repo_ops
@@ -14,38 +15,28 @@ logger = logging.getLogger(__name__)
 
 routes = web.RouteTableDef()
 
-async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
-    async with get_firehose_queues_lock(request):
-        queues_to_remove = set()
-        active_queues = get_firehose_queues(request)
-        for queue in active_queues:
-            try:
-                queue.put_nowait(msg)
-            except asyncio.QueueFull:
-                while not queue.empty():
-                    queue.get_nowait()
-                queue.put_nowait(None)
-                queues_to_remove.add(queue)
-        active_queues -= queues_to_remove
+async def apply_writes_and_emit_firehose(request: web.Request, req_json: dict) -> dict:
+    if req_json["repo"] != request["authed_did"]:
+        raise web.HTTPUnauthorized(text="not authed for that repo")
+    res, firehose_seq, firehose_bytes = repo_ops.apply_writes(
+        get_db(request),
+        request["authed_did"],
+        req_json["writes"],
+        req_json.get("swapCommit"),
+    )
+    await firehose_broadcast(request, (firehose_seq, firehose_bytes))
+    return res
 
 @routes.post("/xrpc/com.atproto.repo.applyWrites")
 @authenticated
 async def repo_apply_writes(request: web.Request):
-    orig = await request.json()
-    res, firehose_seq, firehose_bytes = repo_ops.apply_writes(
-        get_db(request),
-        request["authed_did"],
-        orig["writes"],
-        orig.get("swapCommit"),
-    )
-    await firehose_broadcast(request, (firehose_seq, firehose_bytes))
-    return web.json_response(res)
+    return web.json_response(await apply_writes_and_emit_firehose(request, await request.json()))
 
 @routes.post("/xrpc/com.atproto.repo.createRecord")
 @authenticated
 async def repo_create_record(request: web.Request):
     orig = await request.json()
-    res = await repo_apply_writes(request, orig)
+    res = await apply_writes_and_emit_firehose(request, orig)
     return web.json_response(
         {
             "commit": res["commit"],
@@ -59,7 +50,7 @@ async def repo_create_record(request: web.Request):
 @authenticated
 async def repo_put_record(request: web.Request):
     orig = await request.json()
-    res = await repo_apply_writes(request, orig)
+    res = await apply_writes_and_emit_firehose(request, orig)
     return web.json_response(
         {
             "commit": res["commit"],
@@ -73,7 +64,7 @@ async def repo_put_record(request: web.Request):
 @authenticated
 async def repo_delete_record(request: web.Request):
     orig = await request.json()
-    res = await repo_apply_writes(request, orig)
+    res = await apply_writes_and_emit_firehose(request, orig)
     return web.json_response({"commit": res["commit"]})
 
 @routes.get("/xrpc/com.atproto.repo.describeRepo")
