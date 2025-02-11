@@ -1,11 +1,8 @@
+import importlib.metadata
+import logging
+import os
+import asyncio
 from typing import Optional
-import time
-import io
-import json
-import base64
-import hashlib
-import urllib.parse
-from getpass import getpass
 
 import apsw
 import aiohttp
@@ -26,6 +23,7 @@ from .appview_proxy import service_proxy
 from .auth_bearer import authenticated
 from .app_util import *
 
+# Configure logging
 logger = logging.getLogger(__name__)
 
 routes = web.RouteTableDef()
