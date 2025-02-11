@@ -48,11 +48,11 @@ class DBBlockStore(BlockStore):
 
     def del_block(self, key: bytes) -> None:
         # TODO: Implement this method
-        raise NotImplementedError("TODO: Implement del_block method")
+        raise NotImplementedError("Deleting a block is not yet implemented")
 
     def put_block(self, key: bytes, value: bytes) -> None:
         # TODO: Implement this method
-        raise NotImplementedError("TODO: Implement put_block method")
+        raise NotImplementedError("Putting a block is not yet implemented")
 
 class Database:
     def __init__(self, path: str = static_config.MAIN_DB_PATH) -> None:
@@ -77,6 +77,8 @@ class Database:
 
     def new_con(self, readonly=False):
         """
+        Create a new database connection with the specified read-only flag.
+
         https://rogerbinns.github.io/apsw/cursor.html
         "Cursors on the same Connection are not isolated from each other.
         Anything done on one cursor is immediately visible to all other Cursors
@@ -84,7 +86,7 @@ class Database:
         Connections are isolated from each other with cursors on other
         connections not seeing changes until they are committed."
 
-        therefore we frequently spawn new connections when we need an isolated cursor
+        Therefore, we frequently spawn new connections when we need an isolated cursor.
         """
         return apsw.Connection(
             self.path,
@@ -252,6 +254,17 @@ class Database:
                 head BLOB NOT NULL,
                 rev TEXT NOT NULL,
                 commit_bytes BLOB NOT NULL,
+                last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        # Adding handle_cache table
+        self.con.execute(
+            """
+            CREATE TABLE handle_cache(
+                handle TEXT PRIMARY KEY NOT NULL,
+                did TEXT NOT NULL,
                 last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
