@@ -62,7 +62,7 @@ def authenticated(handler):
                 if not jti:
                     raise web.HTTPUnauthorized(text="invalid jwt: missing jti")
                 
-                if db.is_token_revoked(subject, jti):
+                if not db.is_token_revoked(subject, jti):
                     raise web.HTTPUnauthorized(text="Token has been revoked")
 
                 request["authed_did"] = subject
@@ -98,7 +98,7 @@ def authenticated(handler):
                 if not jti:
                     raise web.HTTPUnauthorized(text="invalid jwt: missing jti")
                 
-                if db.is_token_revoked(did, jti):
+                if not db.is_token_revoked(did, jti):
                     raise web.HTTPUnauthorized(text="Token has been revoked")
 
                 request["authed_did"] = did
