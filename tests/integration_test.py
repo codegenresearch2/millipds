@@ -20,7 +20,7 @@ class PDSInfo:
 
 old_web_tcpsite_start = aiohttp.web.TCPSite.start
 
-def make_capture_random_bound_port_web_tcpsite_startstart(queue: asyncio.Queue):
+def make_capture_random_bound_port_web_tcpsite_start(queue: asyncio.Queue):
 	async def mock_start(site: aiohttp.web.TCPSite, *args, **kwargs):
 		nonlocal queue
 		await old_web_tcpsite_start(site, *args, **kwargs)
@@ -29,7 +29,7 @@ def make_capture_random_bound_port_web_tcpsite_startstart(queue: asyncio.Queue):
 	return mock_start
 
 async def service_run_and_capture_port(queue: asyncio.Queue, **kwargs):
-	mock_start = make_capture_random_bound_port_web_tcpsite_startstart(queue)
+	mock_start = make_capture_random_bound_port_web_tcpsite_start(queue)
 	with unittest.mock.patch.object(
 		aiohttp.web.TCPSite, "start", new=mock_start
 	):
@@ -52,6 +52,9 @@ async def test_pds(aiolib):
 		async with aiohttp.ClientSession() as client:
 			db_path = f"{tempdir}/millipds-0000.db"
 			db = database.Database(path=db_path)
+
+			# Ensure the database is correctly initialized
+			db.initialize_database()
 
 			hostname = "localhost:0"
 			db.update_config(
@@ -77,7 +80,7 @@ async def test_pds(aiolib):
 				return_when=asyncio.FIRST_COMPLETED,
 			)
 			if done == service_run_task:
-				raise service_run_task.execption()
+				raise service_run_task.exception()
 			else:
 				port = queue_get_task.result()
 
@@ -168,6 +171,8 @@ async def test_valid_logins(s, pds_host, login_data):
 		refresh_jwt = r["refreshJwt"]
 		access_jwt_decoded = jwt.decode(access_jwt, options={"verify_signature": False})
 		refresh_jwt_decoded = jwt.decode(refresh_jwt, options={"verify_signature": False})
+		assert "alg" in access_jwt_decoded
+		assert "alg" in refresh_jwt_decoded
 		access_jwt_alg = access_jwt_decoded["alg"]
 		refresh_jwt_alg = refresh_jwt_decoded["alg"]
 		access_jwt_verified = jwt.decode(access_jwt, options={"verify_signature": True, "algorithms": [access_jwt_alg]})
