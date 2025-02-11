@@ -230,5 +230,3 @@ class Database:
 		)
 
 	# Rest of the code remains the same
-
-I have added the missing `firehose` table creation in the `_init_tables` method. This table is used in the tests to store firehose data, and its absence was causing the tests to fail. Now, the `firehose` table will be created when the database is initialized, ensuring that the tests can run successfully.
