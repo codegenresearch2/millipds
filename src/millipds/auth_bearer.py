@@ -40,6 +40,7 @@ def authenticated(handler):
 			unverified_payload = jwt.api_jwt.decode_complete(
 				token, options={"verify_signature": False}
 			)
+			logger.info("Unverified payload: %s", unverified_payload)
 		except jwt.exceptions.PyJWTError:
 			raise web.HTTPUnauthorized(text="invalid jwt")
 
