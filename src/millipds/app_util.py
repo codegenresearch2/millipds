@@ -8,9 +8,7 @@ from . import database
 from .did import DIDResolver
 
 MILLIPDS_DB = web.AppKey("MILLIPDS_DB", database.Database)
-MILLIPDS_AIOHTTP_CLIENT = web.AppKey(
-    "MILLIPDS_AIOHTTP_CLIENT", aiohttp.ClientSession
-)
+MILLIPDS_AIOHTTP_CLIENT = web.AppKey("MILLIPDS_AIOHTTP_CLIENT", aiohttp.ClientSession)
 MILLIPDS_FIREHOSE_QUEUES = web.AppKey(
     "MILLIPDS_FIREHOSE_QUEUES", Set[asyncio.Queue[Optional[Tuple[int, bytes]]]]
 )
