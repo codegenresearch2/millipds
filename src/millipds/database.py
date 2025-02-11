@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 # https://rogerbinns.github.io/apsw/bestpractice.html
 apsw.bestpractice.apply(apsw.bestpractice.recommended)
 
-
 class DBBlockStore(BlockStore):
 	"""
 	Adapt the db for consumption by the atmst library
@@ -36,15 +35,18 @@ class DBBlockStore(BlockStore):
 	def __init__(self, db: apsw.Connection, repo: str) -> None:
 		self.db = db
 		self.user_id = self.db.execute(
-			"SELECT id FROM user WHERE did=?", (repo,)
-		).fetchone()[0]
+			"SELECT id FROM handle_cache WHERE handle=?", (repo,)
+		).fetchone()
+		if self.user_id is None:
+			raise ValueError(f"No user found with handle: {repo}")
+		self.user_id = self.user_id[0]
 
 	def get_block(self, key: bytes) -> bytes:
 		row = self.db.execute(
 			"SELECT value FROM mst WHERE repo=? AND cid=?", (self.user_id, key)
 		).fetchone()
 		if row is None:
-			raise KeyError("block not found in db")
+			raise KeyError("Block not found in database")
 		return row[0]
 
 	def del_block(self, key: bytes) -> None:
@@ -53,10 +55,9 @@ class DBBlockStore(BlockStore):
 	def put_block(self, key: bytes, value: bytes) -> None:
 		raise NotImplementedError("TODO?")
 
-
 class Database:
 	def __init__(self, path: str = static_config.MAIN_DB_PATH) -> None:
-		logger.info(f"opening database at {path}")
+		logger.info(f"Opening database at {path}")
 		self.path = path
 		if "/" in path:
 			util.mkdirs_for_file(path)
@@ -66,10 +67,10 @@ class Database:
 		try:
 			if self.config["db_version"] != static_config.MILLIPDS_DB_VERSION:
 				raise Exception(
-					"unrecognised db version (TODO: db migrations?!)"
+					"Unrecognized database version (TODO: db migrations?)"
 				)
 
-		except apsw.SQLError as e:  # no such table, so lets create it
+		except apsw.SQLError as e:  # no such table, so let's create it
 			if "no such table" not in str(e):
 				raise
 			with self.con:
@@ -84,7 +85,7 @@ class Database:
 		Connections are isolated from each other with cursors on other
 		connections not seeing changes until they are committed."
 
-		therefore we frequently spawn new connections when we need an isolated cursor
+		Therefore, we frequently spawn new connections when we need an isolated cursor
 		"""
 		return apsw.Connection(
 			self.path,
@@ -96,7 +97,7 @@ class Database:
 		)
 
 	def _init_tables(self):
-		logger.info("initing tables")
+		logger.info("Initializing tables")
 		self.con.execute(
 			"""
 			CREATE TABLE config(
@@ -139,6 +140,16 @@ class Database:
 
 		self.con.execute("CREATE UNIQUE INDEX user_by_did ON user(did)")
 		self.con.execute("CREATE UNIQUE INDEX user_by_handle ON user(handle)")
+
+		self.con.execute(
+			"""
+			CREATE TABLE handle_cache(
+				handle TEXT PRIMARY KEY NOT NULL,
+				user_id INTEGER NOT NULL,
+				FOREIGN KEY (user_id) REFERENCES user(id)
+			)
+			"""
+		)
 
 		self.con.execute(
 			"""
@@ -230,18 +241,6 @@ class Database:
 			"""
 		)
 
-		# likewise, a null did represents a failed resolution
-		self.con.execute(
-			"""
-			CREATE TABLE handle_cache(
-				handle TEXT PRIMARY KEY NOT NULL,
-				did TEXT,
-				created_at INTEGER NOT NULL,
-				expires_at INTEGER NOT NULL
-			)
-			"""
-		)
-
 	def update_config(
 		self,
 		pds_pfx: Optional[str] = None,
@@ -306,7 +305,7 @@ class Database:
 	) -> None:
 		pw_hash = self.pw_hasher.hash(password)
 		privkey_pem = crypto.privkey_to_pem(privkey)
-		logger.info(f"creating account for did={did}, handle={handle}")
+		logger.info(f"Creating account for did={did}, handle={handle}")
 
 		# create an initial commit for an empty MST, as an atomic transaction
 		with self.con:
@@ -353,6 +352,10 @@ class Database:
 				"INSERT INTO mst(repo, cid, since, value) VALUES (?, ?, ?, ?)",
 				(user_id, bytes(empty_mst.cid), tid, empty_mst.serialised),
 			)
+			self.con.execute(
+				"INSERT INTO handle_cache(handle, user_id) VALUES (?, ?)",
+				(handle, user_id),
+			)
 
 	def verify_account_login(
 		self, did_or_handle: str, password: str
@@ -362,12 +365,12 @@ class Database:
 			(did_or_handle, did_or_handle),
 		).fetchone()
 		if row is None:
-			raise KeyError("no account found for did")
+			raise KeyError("No account found for the provided DID or handle")
 		did, handle, pw_hash = row
 		try:
 			self.pw_hasher.verify(pw_hash, password)
 		except argon2.exceptions.VerifyMismatchError:
-			raise ValueError("invalid password")
+			raise ValueError("Invalid password")
 		return did, handle
 
 	def did_by_handle(self, handle: str) -> Optional[str]:
