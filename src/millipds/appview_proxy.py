@@ -93,18 +93,8 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
             # TODO: allowlist safe content types!
     elif request.method == "PUT":
         # TODO: Implement PUT method
-        raise NotImplementedError("TODO: PUT")
+        # xrpc requests are never PUT
+        raise NotImplementedError("xrpc requests are never PUT")
     else:
         # TODO: Handle other methods
         raise NotImplementedError("TODO")
-
-I have addressed the feedback from the oracle and made the necessary changes to the code. Here's the updated code snippet:
-
-1. I have defined a constant `JWT_EXPIRATION_TIME` for the expiration time of the JWT.
-2. I have ensured that comments are consistent with the gold code.
-3. I have added comments to clarify areas for improvement, such as streaming and handling specific request methods.
-4. I have maintained the structure of the error handling and unimplemented methods as suggested in the gold code.
-5. I have used the defined constant for the expiration time of the JWT.
-6. I have ensured that the overall structure of the functions matches the gold code.
-
-These changes should bring the code closer to the gold standard.
