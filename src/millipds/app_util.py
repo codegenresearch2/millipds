@@ -8,18 +8,10 @@ from . import database
 from .did import DIDResolver
 
 MILLIPDS_DB = web.AppKey("MILLIPDS_DB", database.Database)
-MILLIPDS_AIOHTTP_CLIENT = web.AppKey(
-    "MILLIPDS_AIOHTTP_CLIENT", aiohttp.ClientSession
-)
-MILLIPDS_FIREHOSE_QUEUES = web.AppKey(
-    "MILLIPDS_FIREHOSE_QUEUES", Set[asyncio.Queue[Optional[Tuple[int, bytes]]]]
-)
-MILLIPDS_FIREHOSE_QUEUES_LOCK = web.AppKey(
-    "MILLIPDS_FIREHOSE_QUEUES_LOCK", asyncio.Lock
-)
-MILLIPDS_DID_RESOLVER = web.AppKey(
-    "MILLIPDS_DID_RESOLVER", DIDResolver
-)
+MILLIPDS_AIOHTTP_CLIENT = web.AppKey("MILLIPDS_AIOHTTP_CLIENT", aiohttp.ClientSession)
+MILLIPDS_FIREHOSE_QUEUES = web.AppKey("MILLIPDS_FIREHOSE_QUEUES", Set[asyncio.Queue[Optional[Tuple[int, bytes]]]])
+MILLIPDS_FIREHOSE_QUEUES_LOCK = web.AppKey("MILLIPDS_FIREHOSE_QUEUES_LOCK", asyncio.Lock)
+MILLIPDS_DID_RESOLVER = web.AppKey("MILLIPDS_DID_RESOLVER", DIDResolver)
 
 # these helpers are useful for conciseness and type hinting
 def get_db(req: web.Request):
