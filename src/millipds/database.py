@@ -48,11 +48,11 @@ class DBBlockStore(BlockStore):
 
     def del_block(self, key: bytes) -> None:
         # TODO: Implement this method
-        raise NotImplementedError("del_block method not implemented")
+        raise NotImplementedError("TODO: Implement del_block method")
 
     def put_block(self, key: bytes, value: bytes) -> None:
         # TODO: Implement this method
-        raise NotImplementedError("put_block method not implemented")
+        raise NotImplementedError("TODO: Implement put_block method")
 
 class Database:
     def __init__(self, path: str = static_config.MAIN_DB_PATH) -> None:
