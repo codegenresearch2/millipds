@@ -47,6 +47,8 @@ class DIDResolver:
     async def resolve_with_db_cache(
         self, db: Database, did: str
     ) -> Optional[DIDDoc]:
+        # TODO: prevent concurrent queries for the same DID - use locks?
+
         # try the db first
         now = int(time.time())
         row = db.con.execute(
@@ -80,6 +82,7 @@ class DIDResolver:
         )
 
         # update the cache (note: we cache failures too, but with a shorter TTL)
+        # TODO: if current doc is None, only replace if the existing entry is also None
         db.con.execute(
             "INSERT OR REPLACE INTO did_cache (did, doc, created_at, expires_at) VALUES (?, ?, ?, ?)",
             (
@@ -92,8 +95,8 @@ class DIDResolver:
 
         return doc
 
-    # TODO: add comment indicating that the uncached methods raise exceptions on failure
     async def resolve_uncached(self, did: str) -> DIDDoc:
+        # The uncached methods raise exceptions on failure
         if len(did) > self.DID_LENGTH_LIMIT:
             raise ValueError("DID too long for atproto")
         scheme, method, *_ = did.split(":")
