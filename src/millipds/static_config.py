@@ -1,7 +1,7 @@
-# Hardcoded configs (it is not expected that end-users need to edit this file)
-
 # Logging format for HTTP requests
-HTTP_LOG_FMT = '%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Agent}i"'
+HTTP_LOG_FMT = (
+    '%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Agent}i'
+)
 
 # Group name for Unix socket permissions
 GROUPNAME = "millipds-sock"
