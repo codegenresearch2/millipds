@@ -11,6 +11,7 @@ def migrate_database():
         version_now, *_ = conn.execute("SELECT db_version FROM config").fetchone()
         assert version_now == 1, f"Expected database version 1, but found version {version_now}"
 
+        # Creating tables and updating the database version
         conn.execute("""
             CREATE TABLE did_cache(
                 did TEXT PRIMARY KEY NOT NULL,
