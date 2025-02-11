@@ -141,14 +141,18 @@ async def sync_get_record(request: web.Request):
     if "rkey" not in request.query:
         raise web.HTTPBadRequest(text="missing rkey")
 
-    car = await repo_ops.get_record(
-        get_db(request),
-        request.query["did"],
-        request.query["collection"] + "/" + request.query["rkey"],
-    )
+    try:
+        car = await repo_ops.get_record(
+            get_db(request),
+            request.query["did"],
+            request.query["collection"] + "/" + request.query["rkey"],
+        )
+    except Exception as e:
+        logger.error(f"Error fetching record: {e}")
+        raise web.HTTPNotFound(text="record not found")
 
     if car is None:
-        raise web.HTTPNotFound(text="did not found")
+        raise web.HTTPNotFound(text="record not found")
 
     return web.Response(body=car, content_type="application/vnd.ipld.car")
 
