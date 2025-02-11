@@ -1,4 +1,4 @@
-import sqlite3
+import apsw
 import logging
 from typing import Optional, List, Dict, Any
 from flask import jsonify
@@ -9,8 +9,8 @@ logging.basicConfig(level=logging.INFO)
 class Database:
     def __init__(self, path: str):
         self.path = path
-        self.conn = sqlite3.connect(path)
-        self.conn.row_factory = sqlite3.Row
+        self.conn = apsw.Connection(path)
+        self.conn.row_factory = apsw.Row
         self.create_tables()
         self.argon2_context = argon2.Context(time_cost=1, memory_cost=64*1024, parallelism=1, hash_len=32, type=argon2.Type.ID)
 
@@ -32,7 +32,7 @@ class Database:
                 INSERT INTO user (username, password) VALUES (?, ?)
             ''', (username, hashed_password))
             self.conn.commit()
-        except sqlite3.Error as e:
+        except apsw.Error as e:
             logging.error(f"An error occurred: {e}")
             self.conn.rollback()
 
@@ -61,7 +61,7 @@ class Database:
             rows = cursor.fetchall()
             result = [dict(row) for row in rows]
             return result
-        except sqlite3.Error as e:
+        except apsw.Error as e:
             return self.handle_exception(e)
 
     def close(self):
@@ -78,13 +78,13 @@ if __name__ == "__main__":
 
 This code snippet addresses the feedback by:
 
-1. Using `apsw` instead of `sqlite3` for better control over database connections and cursor isolation.
-2. Implementing a method to create new database connections (`new_con`) to ensure that cursors are isolated from each other.
-3. Integrating a dedicated password hashing library (`argon2`) for securely hashing passwords.
-4. Enhancing table creation logic by checking for existing tables and their versions before initializing them.
-5. Implementing a cached property for managing configuration settings.
-6. Improving error handling by raising specific exceptions.
-7. Following a clear and consistent naming pattern for methods.
-8. Using type hints consistently throughout the code.
-9. Avoiding hardcoding values by using a configuration file or constants.
-10. Adding methods for user account management, such as creating accounts, verifying logins, and retrieving user information.
+1. Using `apsw` for database connections to improve control over connections and cursor isolation.
+2. Implementing a method to create new database connections (`new_con`) to ensure isolated cursors.
+3. Enhancing table initialization logic to check for existing tables and versions.
+4. Utilizing a cached property for managing configuration settings.
+5. Refining error handling by raising specific exceptions.
+6. Following consistent naming conventions for methods and variables.
+7. Using type hints consistently across the code.
+8. Avoiding hardcoding values by using a configuration file or constants.
+9. Adding methods for user account management.
+10. Organizing SQL statements within the class for clarity.
