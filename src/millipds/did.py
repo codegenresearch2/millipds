@@ -50,7 +50,7 @@ class DIDResolver:
         # try the db first
         now = int(time.time())
         row = db.con.execute(
-            "SELECT doc FROM did_cache WHERE did=? AND expires_at<?", (did, now)
+            "SELECT doc FROM did_cache WHERE did=? AND ?<expires_at", (did, now)
         ).fetchone()
 
         # cache hit
@@ -66,9 +66,9 @@ class DIDResolver:
         )
         try:
             doc = await self.resolve_uncached(did)
-            logger.info(f"Successfully resolved DID: {did}")
+            logger.info(f"Successfully resolved {did}")
         except Exception as e:
-            logger.exception(f"Error resolving DID {did}: {e}")
+            logger.exception(f"Error resolving {did}: {e}")
             doc = None
 
         # update "now" because resolution might've taken a while
@@ -92,6 +92,7 @@ class DIDResolver:
 
         return doc
 
+    # TODO: add comment indicating that the uncached methods raise exceptions on failure
     async def resolve_uncached(self, did: str) -> DIDDoc:
         if len(did) > self.DID_LENGTH_LIMIT:
             raise ValueError("DID too long for atproto")
