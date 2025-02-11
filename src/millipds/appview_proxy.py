@@ -6,27 +6,15 @@ import jwt
 from aiohttp import web
 
 from . import crypto
-from . import DIDResolver
 from .auth_bearer import authenticated
 from .app_util import *
 from .did import DIDResolver
 
 logger = logging.getLogger(__name__)
 
-# TODO: this should be done via actual DID resolution, not hardcoded!
-SERVICE_ROUTES = {
-    "did:web:api.bsky.chat#bsky_chat": "https://api.bsky.chat",
-    "did:web:discover.bsky.app#bsky_fg": "https://discover.bsky.app",
-    "did:plc:ar7c4by46qjdydhdevvrndac#atproto_labeler": "https://mod.bsky.app",
-}
-
-# Add DIDResolver import
-from . import DIDResolver
-
-# Include a DID resolver instance
+# Initialize DIDResolver
 did_resolver = DIDResolver(client, static_config.PLC_DIRECTORY_HOST)
 
-@authenticated
 async def service_proxy(request: web.Request, service: Optional[str] = None):
     """
     If `service` is None, default to bsky appview (per details in db config)
@@ -35,11 +23,14 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     # TODO: verify valid lexicon method?
     logger.info(f"proxying lxm {lxm}")
     db = get_db(request)
+    
     if service:
-        service_did = service.partition("#")[0]
-        service_route = SERVICE_ROUTES.get(service)
-        if service_route is None:
-            return web.HTTPBadRequest(f"unable to resolve service {service!r}")
+        try:
+            resolved_service = await did_resolver.resolve(service)
+            service_did = resolved_service.did
+            service_route = resolved_service.serviceEndpoint
+        except Exception as e:
+            return web.HTTPBadRequest(text=str(e))
     else:
         service_did = db.config["bsky_appview_did"]
         service_route = db.config["bsky_appview_pfx"]
@@ -58,6 +49,7 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
             algorithm=crypto.jwt_signature_alg_for_pem(signing_key),
         )
     }  # TODO: cache this?
+    
     if request.method == "GET":
         async with get_client(request).get(
             service_route + request.path,
