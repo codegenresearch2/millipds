@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Tuple
 import logging
 import hashlib
 from aiohttp import web
@@ -29,7 +29,7 @@ async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
                 queues_to_remove.add(queue)
         active_queues -= queues_to_remove
 
-async def apply_writes_and_emit_firehose(request: web.Request, req_json: Dict[str, Any]) -> Dict[str, Any]:
+async def apply_writes_and_emit_firehose(request: web.Request, req_json: dict) -> dict:
     if req_json["repo"] != request["authed_did"]:
         raise web.HTTPUnauthorized(text="not authed for that repo")
     res, firehose_seq, firehose_bytes = repo_ops.apply_writes(
@@ -49,7 +49,7 @@ async def repo_apply_writes(request: web.Request):
 @routes.post("/xrpc/com.atproto.repo.createRecord")
 @authenticated
 async def repo_create_record(request: web.Request):
-    orig: Dict[str, Any] = await request.json()
+    orig = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
         {
@@ -77,7 +77,7 @@ async def repo_create_record(request: web.Request):
         }
     )
 
-# Similar modifications for repo_put_record and repo_delete_record functions
+# Additional functions implementation here...
 
 @routes.get("/xrpc/com.atproto.repo.describeRepo")
 async def repo_describe_repo(request: web.Request):
