@@ -1,4 +1,4 @@
-import importlib.metadata
+from typing import Optional
 import logging
 import asyncio
 import os
