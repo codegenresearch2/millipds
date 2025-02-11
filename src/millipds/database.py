@@ -71,6 +71,7 @@ class Database:
 				)
 		except apsw.SQLError as e:
 			if "no such table" in str(e):
+				logger.warning("Database schema not initialized. Initializing now.")
 				with self.con:
 					self._init_tables()
 			else:
