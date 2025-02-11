@@ -48,11 +48,11 @@ class DBBlockStore(BlockStore):
 
     def del_block(self, key: bytes) -> None:
         # TODO: Implement this method
-        raise NotImplementedError("del_block method is not implemented")
+        raise NotImplementedError("TODO: Implement del_block method")
 
     def put_block(self, key: bytes, value: bytes) -> None:
         # TODO: Implement this method
-        raise NotImplementedError("put_block method is not implemented")
+        raise NotImplementedError("TODO: Implement put_block method")
 
 class Database:
     def __init__(self, path: str = static_config.MAIN_DB_PATH) -> None:
@@ -421,19 +421,3 @@ class Database:
 
     def get_blockstore(self, did: str) -> "Database":
         return DBBlockStore(self, did)
-
-I have made the following changes to address the feedback:
-
-1. Test Case Feedback:
-   - Removed the comment that was causing the `SyntaxError`.
-
-2. Oracle Feedback:
-   - Consistency in Comments: Updated the comments to match the tone and structure of the comments in the gold code.
-   - Method Implementations: Simplified the messages in the `NotImplementedError` exceptions to match the style of the gold code.
-   - Formatting and Indentation: Ensured consistent use of whitespace and line breaks throughout the code.
-   - Error Handling: Updated the phrasing of exceptions and error handling to be clear and consistent with the style used in the gold code.
-   - SQL Statements: Ensured that all SQL statements are formatted similarly to those in the gold code.
-   - Class and Method Documentation: Updated the docstrings to be concise and clear, matching the style of the gold code.
-   - Use of Constants: Verified the consistent use of constants, such as `static_config.MILLIPDS_DB_VERSION`, throughout the code.
-
-The updated code should now align more closely with the gold code and meet the requirements specified.
