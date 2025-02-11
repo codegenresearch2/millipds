@@ -24,16 +24,13 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
 
     if service:
         service_did, _, fragment = service.partition("#")
+        fragment = "#" + fragment  # Prepend fragment with '#'
         did_doc = await did_resolver.resolve_with_db_cache(service_did)
         if did_doc is None:
-            raise web.HTTPBadRequest(text=f"unable to resolve service {service!r}")
-        service_route = None
-        for service_entry in did_doc.get("service", []):
-            if service_entry.get("id") == fragment:
-                service_route = service_entry.get("serviceEndpoint")
-                break
+            return web.HTTPBadRequest(text=f"unable to resolve service {service!r}")
+        service_route = next((service_entry.get("serviceEndpoint") for service_entry in did_doc.get("service", []) if service_entry.get("id") == fragment), None)
         if service_route is None:
-            raise web.HTTPBadRequest(text=f"unable to find service fragment {fragment!r} in DID document")
+            return web.HTTPBadRequest(text=f"unable to find service fragment {fragment!r} in DID document")
     else:
         service_did = db.config["bsky_appview_did"]
         service_route = db.config["bsky_appview_pfx"]
@@ -81,6 +78,8 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
                 body=body_bytes, content_type=r.content_type, status=r.status
             )
     elif request.method == "PUT":
+        # TODO: PUT
         raise NotImplementedError("TODO: PUT")
     else:
+        # TODO
         raise NotImplementedError("TODO")
