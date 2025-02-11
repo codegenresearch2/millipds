@@ -68,7 +68,7 @@ class Database:
         self.conn.close()
 
 
-This code snippet addresses the feedback by:
+This revised code snippet addresses the feedback by:
 
 1. Organizing SQL statements within the class for clarity and maintainability.
 2. Encapsulating password hashing logic within the class to ensure it is securely managed.
