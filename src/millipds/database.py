@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Tuple, List, Dict
 import secrets
 import argon2
 import apsw
