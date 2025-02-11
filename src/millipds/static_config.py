@@ -25,7 +25,7 @@ MAIN_DB_PATH = DATA_DIR + "/millipds.sqlite3"
 REPOS_DIR = DATA_DIR + "/repos"
 
 # Size of the firehose queue
-FIREHOSE_QUEUE_SIZE = 100  # NB: Adjust this value based on the expected load
+FIREHOSE_QUEUE_SIZE = 100  # Adjust this value based on the expected load
 
 # Time-to-live for DID cache entries
 DID_CACHE_TTL = 60 * 60  # 1 hour
