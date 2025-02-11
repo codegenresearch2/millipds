@@ -3,7 +3,7 @@ import jwt
 from aiohttp import web
 from .app_util import *
 from . import crypto
-from .database import RevokedToken
+from .database import RevokedToken, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def authenticated(handler):
 					algorithms=["HS256"],
 					audience=db.config["pds_did"],
 					options={
-						"require": ["exp", "iat", "scope"],  # consider iat?
+						"require": ["exp", "iat", "scope", "jti", "sub"],  # consider iat?
 						"verify_exp": True,
 						"verify_iat": True,
 						"strict_aud": True,  # may be unnecessary
@@ -83,7 +83,7 @@ def authenticated(handler):
 					algorithms=[alg],
 					audience=db.config["pds_did"],
 					options={
-						"require": ["exp", "iat", "lxm"],
+						"require": ["exp", "iat", "lxm", "jti", "iss"],
 						"verify_exp": True,
 						"verify_iat": True,
 						"strict_aud": True,  # may be unnecessary
