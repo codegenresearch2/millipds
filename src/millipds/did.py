@@ -53,11 +53,11 @@ class DIDResolver:
 		# try the db first
 		now = int(time.time())
 		row = db.con.execute(
-			"SELECT doc, expires_at FROM did_cache WHERE did=?", (did,)
+			"SELECT doc, expires_at FROM did_cache WHERE did=? AND expires_at > ?", (did, now)
 		).fetchone()
 
 		# cache hit
-		if row is not None and row['expires_at'] > now:
+		if row is not None:
 			self.hits += 1
 			doc = row['doc']
 			return None if doc is None else json.loads(doc)
