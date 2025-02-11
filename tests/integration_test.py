@@ -78,7 +78,7 @@ async def test_pds(aiolib):
 				return_when=asyncio.FIRST_COMPLETED,
 			)
 			if done == service_run_task:
-				raise service_run_task.execption()
+				raise service_run_task.exception()
 			else:
 				port = queue_get_task.result()
 
