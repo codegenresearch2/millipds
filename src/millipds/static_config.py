@@ -10,9 +10,9 @@ HTTP_LOG_FMT = (
 
 GROUPNAME = "millipds-sock"
 
-# this gets bumped if we make breaking changes to the db schema
-MILLIPDS_DB_VERSION = 2
-
+MILLIPDS_DB_VERSION = (
+	1  # this gets bumped if we make breaking changes to the db schema
+)
 ATPROTO_REPO_VERSION_3 = 3  # might get bumped if the atproto spec changes
 CAR_VERSION_1 = 1
 
@@ -27,5 +27,3 @@ FIREHOSE_QUEUE_SIZE = 100
 
 DID_CACHE_TTL = 60 * 60  # 1 hour
 DID_CACHE_ERROR_TTL = 60 * 5  # 5 mins
-
-PLC_DIRECTORY_HOST = "https://plc.directory"
