@@ -2,6 +2,7 @@ from typing import Optional, Dict, List, Tuple
 from functools import cached_property
 import secrets
 import logging
+import json
 
 import argon2
 import apsw
@@ -20,6 +21,9 @@ logger = logging.getLogger(__name__)
 apsw.bestpractice.apply(apsw.bestpractice.recommended)
 
 class DBBlockStore(BlockStore):
+    """
+    Adapt the db for consumption by the atmst library
+    """
     def __init__(self, db: apsw.Connection, repo: str) -> None:
         self.db = db
         self.user_id = self.db.execute(
@@ -30,6 +34,18 @@ class DBBlockStore(BlockStore):
         self.user_id = self.user_id[0]
 
     def get_block(self, key: bytes) -> bytes:
+        """
+        Retrieve a block from the database by its key.
+
+        Args:
+            key (bytes): The key of the block to retrieve.
+
+        Returns:
+            bytes: The value of the block.
+
+        Raises:
+            KeyError: If the block is not found in the database.
+        """
         row = self.db.execute(
             "SELECT value FROM mst WHERE repo=? AND cid=?", (self.user_id, key)
         ).fetchone()
@@ -38,12 +54,34 @@ class DBBlockStore(BlockStore):
         return row[0]
 
     def del_block(self, key: bytes) -> None:
+        """
+        Delete a block from the database by its key.
+
+        Args:
+            key (bytes): The key of the block to delete.
+
+        Raises:
+            NotImplementedError: If the method is not implemented yet.
+        """
         raise NotImplementedError("TODO?")
 
     def put_block(self, key: bytes, value: bytes) -> None:
+        """
+        Put a block into the database with the given key and value.
+
+        Args:
+            key (bytes): The key of the block.
+            value (bytes): The value of the block.
+
+        Raises:
+            NotImplementedError: If the method is not implemented yet.
+        """
         raise NotImplementedError("TODO?")
 
 class Database:
+    """
+    A class representing the database for the application.
+    """
     def __init__(self, path: str = static_config.MAIN_DB_PATH) -> None:
         logger.info(f"opening database at {path}")
         self.path = path
@@ -58,12 +96,22 @@ class Database:
                 )
 
         except apsw.SQLError as e:
+            # If the error is "no such table", it means the tables need to be initialized.
             if "no such table" not in str(e):
                 raise
             with self.con:
                 self._init_tables()
 
-    def new_con(self, readonly=False):
+    def new_con(self, readonly=False) -> apsw.Connection:
+        """
+        Create a new database connection.
+
+        Args:
+            readonly (bool, optional): Whether the connection should be read-only. Defaults to False.
+
+        Returns:
+            apsw.Connection: The new database connection.
+        """
         return apsw.Connection(
             self.path,
             flags=(
@@ -73,7 +121,10 @@ class Database:
             ),
         )
 
-    def _init_tables(self):
+    def _init_tables(self) -> None:
+        """
+        Initialize the database tables.
+        """
         logger.info("initing tables")
         self.con.execute(
             """
@@ -98,6 +149,8 @@ class Database:
             (static_config.MILLIPDS_DB_VERSION, secrets.token_hex()),
         )
 
+        # Create the user table.
+        # Note: head and rev are redundant, technically (rev contained within commit_bytes)
         self.con.execute(
             """
             CREATE TABLE user(
@@ -107,8 +160,6 @@ class Database:
                 prefs BLOB NOT NULL,
                 pw_hash TEXT NOT NULL,
                 signing_key TEXT NOT NULL,
-                head BLOB NOT NULL,
-                rev TEXT NOT NULL,
                 commit_bytes BLOB NOT NULL
             )
             """
@@ -117,6 +168,7 @@ class Database:
         self.con.execute("CREATE UNIQUE INDEX user_by_did ON user(did)")
         self.con.execute("CREATE UNIQUE INDEX user_by_handle ON user(handle)")
 
+        # Create the firehose table.
         self.con.execute(
             """
             CREATE TABLE firehose(
@@ -127,6 +179,7 @@ class Database:
             """
         )
 
+        # Create the mst table.
         self.con.execute(
             """
             CREATE TABLE mst(
@@ -141,6 +194,7 @@ class Database:
         )
         self.con.execute("CREATE INDEX mst_since ON mst(since)")
 
+        # Create the record table.
         self.con.execute(
             """
             CREATE TABLE record(
@@ -157,6 +211,9 @@ class Database:
         )
         self.con.execute("CREATE INDEX record_since ON record(since)")
 
+        # Create the blob table.
+        # Note: blobs have null cid when they're midway through being uploaded,
+        # and they have null "since" when they haven't been committed yet
         self.con.execute(
             """
             CREATE TABLE blob(
@@ -175,6 +232,7 @@ class Database:
         self.con.execute("CREATE UNIQUE INDEX blob_repo_cid ON blob(repo, cid)")
         self.con.execute("CREATE INDEX blob_since ON blob(since)")
 
+        # Create the blob_part table.
         self.con.execute(
             """
             CREATE TABLE blob_part(
@@ -193,7 +251,16 @@ class Database:
         pds_did: Optional[str] = None,
         bsky_appview_pfx: Optional[str] = None,
         bsky_appview_did: Optional[str] = None,
-    ):
+    ) -> None:
+        """
+        Update the configuration in the database.
+
+        Args:
+            pds_pfx (Optional[str], optional): The new PDS prefix. Defaults to None.
+            pds_did (Optional[str], optional): The new PDS DID. Defaults to None.
+            bsky_appview_pfx (Optional[str], optional): The new AppView prefix. Defaults to None.
+            bsky_appview_did (Optional[str], optional): The new AppView DID. Defaults to None.
+        """
         with self.con:
             if pds_pfx is not None:
                 self.con.execute("UPDATE config SET pds_pfx=?", (pds_pfx,))
@@ -215,6 +282,15 @@ class Database:
 
     @cached_property
     def config(self) -> Dict[str, object]:
+        """
+        Get the configuration from the database.
+
+        Returns:
+            Dict[str, object]: The configuration as a dictionary.
+
+        Raises:
+            ValueError: If the configuration is not initialized.
+        """
         config_fields = (
             "db_version",
             "pds_pfx",
@@ -234,9 +310,21 @@ class Database:
         return dict(zip(config_fields, cfg))
 
     def config_is_initialised(self) -> bool:
+        """
+        Check if the configuration is initialized.
+
+        Returns:
+            bool: True if the configuration is initialized, False otherwise.
+        """
         return all(v is not None for v in self.config.values())
 
     def print_config(self, redact_secrets: bool = True) -> None:
+        """
+        Print the configuration.
+
+        Args:
+            redact_secrets (bool, optional): Whether to redact secrets in the output. Defaults to True.
+        """
         maxlen = max(map(len, self.config))
         for k, v in self.config.items():
             if redact_secrets and "secret" in k:
@@ -250,6 +338,15 @@ class Database:
         password: str,
         privkey: crypto.ec.EllipticCurvePrivateKey,
     ) -> None:
+        """
+        Create a new account in the database.
+
+        Args:
+            did (str): The DID of the account.
+            handle (str): The handle of the account.
+            password (str): The password of the account.
+            privkey (crypto.ec.EllipticCurvePrivateKey): The private key of the account.
+        """
         pw_hash = self.pw_hasher.hash(password)
         privkey_pem = crypto.privkey_to_pem(privkey)
         logger.info(f"creating account for did={did}, handle={handle}")
@@ -277,19 +374,15 @@ class Database:
                     prefs,
                     pw_hash,
                     signing_key,
-                    head,
-                    rev,
                     commit_bytes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     did,
                     handle,
-                    b"{}",
+                    b'{"preferences":[]}',
                     pw_hash,
                     privkey_pem,
-                    bytes(commit_cid),
-                    tid,
                     commit_bytes,
                 ),
             )
@@ -302,6 +395,20 @@ class Database:
     def verify_account_login(
         self, did_or_handle: str, password: str
     ) -> Tuple[str, str, str, str]:
+        """
+        Verify the login credentials for an account.
+
+        Args:
+            did_or_handle (str): The DID or handle of the account.
+            password (str): The password of the account.
+
+        Returns:
+            Tuple[str, str, str, str]: The DID, handle, and other account information.
+
+        Raises:
+            KeyError: If no account is found for the given DID or handle.
+            ValueError: If the password is invalid.
+        """
         row = self.con.execute(
             "SELECT did, handle, pw_hash FROM user WHERE did=? OR handle=?",
             (did_or_handle, did_or_handle),
@@ -316,6 +423,15 @@ class Database:
         return did, handle
 
     def did_by_handle(self, handle: str) -> Optional[str]:
+        """
+        Get the DID of an account by its handle.
+
+        Args:
+            handle (str): The handle of the account.
+
+        Returns:
+            Optional[str]: The DID of the account, or None if no account is found.
+        """
         row = self.con.execute(
             "SELECT did FROM user WHERE handle=?", (handle,)
         ).fetchone()
@@ -324,6 +440,15 @@ class Database:
         return row[0]
 
     def handle_by_did(self, did: str) -> Optional[str]:
+        """
+        Get the handle of an account by its DID.
+
+        Args:
+            did (str): The DID of the account.
+
+        Returns:
+            Optional[str]: The handle of the account, or None if no account is found.
+        """
         row = self.con.execute(
             "SELECT handle FROM user WHERE did=?", (did,)
         ).fetchone()
@@ -332,6 +457,15 @@ class Database:
         return row[0]
 
     def signing_key_pem_by_did(self, did: str) -> Optional[str]:
+        """
+        Get the signing key PEM of an account by its DID.
+
+        Args:
+            did (str): The DID of the account.
+
+        Returns:
+            Optional[str]: The signing key PEM of the account, or None if no account is found.
+        """
         row = self.con.execute(
             "SELECT signing_key FROM user WHERE did=?", (did,)
         ).fetchone()
@@ -342,17 +476,44 @@ class Database:
     def list_repos(
         self,
     ) -> List[Tuple[str, cbrrr.CID, str]]:
+        """
+        List all repositories in the database.
+
+        Returns:
+            List[Tuple[str, cbrrr.CID, str]]: A list of tuples containing the DID, head CID, and revision of each repository.
+        """
         repos = self.con.execute(
-            "SELECT did, head, rev FROM user"
+            "SELECT did, commit_bytes, rev FROM user"
         ).fetchall()
         if not repos:
             return []
-        return [(did, cbrrr.CID(head), rev) for did, head, rev in repos]
+        return [(did, cbrrr.CID.decode(commit_bytes), rev) for did, commit_bytes, rev in repos]
 
     def get_blockstore(self, did: str) -> "DBBlockStore":
+        """
+        Get the blockstore for a repository by its DID.
+
+        Args:
+            did (str): The DID of the repository.
+
+        Returns:
+            DBBlockStore: The blockstore for the repository.
+        """
         return DBBlockStore(self.con, did)
 
     def get_preferences(self, did: str) -> Dict[str, object]:
+        """
+        Get the preferences of a user by their DID.
+
+        Args:
+            did (str): The DID of the user.
+
+        Returns:
+            Dict[str, object]: The preferences of the user.
+
+        Raises:
+            KeyError: If no account is found for the given DID.
+        """
         row = self.con.execute(
             "SELECT prefs FROM user WHERE did=?", (did,)
         ).fetchone()
@@ -361,6 +522,13 @@ class Database:
         return json.loads(row[0])
 
     def set_preferences(self, did: str, prefs: Dict[str, object]) -> None:
+        """
+        Set the preferences of a user by their DID.
+
+        Args:
+            did (str): The DID of the user.
+            prefs (Dict[str, object]): The preferences to set.
+        """
         with self.con:
             self.con.execute(
                 "UPDATE user SET prefs=? WHERE did=?",
@@ -368,6 +536,16 @@ class Database:
             )
 
     def get_response_structure(self, success: bool, data: Optional[Dict[str, object]] = None) -> Dict[str, object]:
+        """
+        Get a response structure with the given success status and data.
+
+        Args:
+            success (bool): The success status of the response.
+            data (Optional[Dict[str, object]], optional): The data to include in the response. Defaults to None.
+
+        Returns:
+            Dict[str, object]: The response structure.
+        """
         response = {"success": success}
         if data is not None:
             response["data"] = data
