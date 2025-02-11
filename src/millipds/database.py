@@ -108,7 +108,7 @@ class Database:
                 id INTEGER PRIMARY KEY NOT NULL,
                 did TEXT NOT NULL,
                 handle TEXT NOT NULL,
-                prefs TEXT NOT NULL,
+                prefs BLOB NOT NULL,
                 pw_hash TEXT NOT NULL,
                 signing_key TEXT NOT NULL,
                 head BLOB NOT NULL,
@@ -244,6 +244,9 @@ class Database:
                 v = "[REDACTED]"
             print(f"{k:<{maxlen}} : {v!r}")
 
+    def hash_password(self, password: str) -> str:
+        return self.pw_hasher.hash(password)
+
     def create_account(
         self,
         did: str,
@@ -251,7 +254,7 @@ class Database:
         password: str,
         privkey: crypto.ec.EllipticCurvePrivateKey,
     ) -> None:
-        pw_hash = self.pw_hasher.hash(password)
+        pw_hash = self.hash_password(password)
         privkey_pem = crypto.privkey_to_pem(privkey)
         logger.info(f"creating account for did={did}, handle={handle}")
 
@@ -286,7 +289,7 @@ class Database:
                 (
                     did,
                     handle,
-                    json.dumps({"theme": "light", "language": "en"}),  # Initialize user preferences with a structured JSON object
+                    json.dumps({"theme": "light", "language": "en"}).encode(),  # Initialize user preferences with a structured JSON object
                     pw_hash,
                     privkey_pem,
                     bytes(commit_cid),
@@ -359,11 +362,11 @@ class Database:
         ).fetchone()
         if row is None:
             return {}
-        return json.loads(row[0])
+        return json.loads(row[0].decode())
 
     def update_user_preferences(self, did: str, prefs: Dict[str, object]) -> None:
         with self.con:
             self.con.execute(
                 "UPDATE user SET prefs=? WHERE did=?",
-                (json.dumps(prefs), did),
+                (json.dumps(prefs).encode(), did),
             )
