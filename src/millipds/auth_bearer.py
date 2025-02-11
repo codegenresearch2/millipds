@@ -8,22 +8,6 @@ logger = logging.getLogger(__name__)
 
 routes = web.RouteTableDef()
 
-# Ensure app is defined and initialized
-app = web.Application()
-
-def revoked_token_middleware(app):
-    async def middleware(request, handler):
-        token = request.headers.get("Authorization")
-        if token and token.startswith("Bearer "):
-            token = token.removeprefix("Bearer ")
-            db = get_db(request)
-            if db.is_token_revoked(token):
-                raise web.HTTPUnauthorized(text="Token has been revoked")
-        return await handler(request)
-    return middleware
-
-app.middlewares.append(revoked_token_middleware)
-
 def authenticated(handler):
     """
     There are three types of auth:
@@ -75,6 +59,14 @@ def authenticated(handler):
             subject: str = payload.get("sub", "")
             if not subject.startswith("did:"):
                 raise web.HTTPUnauthorized(text="invalid jwt: invalid subject")
+            
+            jti = payload.get("jti", "")
+            if not jti:
+                raise web.HTTPUnauthorized(text="invalid jwt: missing jti")
+            
+            if db.is_token_revoked(subject, jti):
+                raise web.HTTPUnauthorized(text="Token has been revoked")
+
             request["authed_did"] = subject
         else:  # asymmetric service auth (scoped to a specific lxm)
             did: str = unverified["payload"]["iss"]
@@ -107,7 +99,13 @@ def authenticated(handler):
             if request_lxm != payload.get("lxm"):
                 raise web.HTTPUnauthorized(text="invalid jwt: bad lxm")
 
-            # everything checks out
+            jti = payload.get("jti", "")
+            if not jti:
+                raise web.HTTPUnauthorized(text="invalid jwt: missing jti")
+            
+            if db.is_token_revoked(did, jti):
+                raise web.HTTPUnauthorized(text="Token has been revoked")
+
             request["authed_did"] = did
 
         return await handler(request, *args, **kwargs)
