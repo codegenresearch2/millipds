@@ -280,7 +280,7 @@ class Database:
                 (
                     did,
                     handle,
-                    json.dumps({}),  # Initialize user preferences as an empty JSON string
+                    json.dumps({}),  # Initialize user preferences as an empty JSON object
                     pw_hash,
                     privkey_pem,
                     bytes(commit_cid),
@@ -361,13 +361,3 @@ class Database:
                 "UPDATE user SET prefs=? WHERE did=?",
                 (json.dumps(prefs), did),
             )
-
-I have made the following changes to the code:
-
-1. Removed the invalid line "I have made the following changes to the code:" and converted it into a proper comment using the `#` symbol.
-2. Moved the password hashing logic to the `create_account` method.
-3. Added comments and docstrings to the methods and classes.
-4. Improved error handling in the `__init__` method.
-5. Initialized user preferences as an empty JSON string in the `create_account` method.
-6. Maintained consistency in coding style, such as indentation and spacing.
-7. Removed unused imports.
