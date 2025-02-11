@@ -53,6 +53,8 @@ async def sync_get_blob(request: web.Request):
                 await res.write(blob_part)
             await res.write_eof()
             return res
+    except web.HTTPNotFound:
+        raise
     except Exception as e:
         logger.error(f"Error fetching blob: {e}")
         raise web.HTTPInternalServerError(text="Internal Server Error")
@@ -104,6 +106,8 @@ async def sync_get_blocks(request: web.Request):
             await res.write(util.serialize_car_entry(cid, row[0]))
         await res.write_eof()
         return res
+    except web.HTTPNotFound:
+        raise
     except Exception as e:
         logger.error(f"Error fetching blocks: {e}")
         raise web.HTTPInternalServerError(text="Internal Server Error")
@@ -130,6 +134,8 @@ async def sync_get_latest_commit(request: web.Request):
             raise web.HTTPNotFound(text="did not found")
         rev, head = row
         return web.json_response({"cid": cbrrr.CID(head).encode(), "rev": rev})
+    except web.HTTPNotFound:
+        raise
     except Exception as e:
         logger.error(f"Error fetching latest commit: {e}")
         raise web.HTTPInternalServerError(text="Internal Server Error")
@@ -189,6 +195,8 @@ async def sync_get_repo_status(request: web.Request):
         if row is None:
             raise web.HTTPNotFound(text="did not found")
         return web.json_response({"did": did, "active": True, "rev": row[0]})
+    except web.HTTPNotFound:
+        raise
     except Exception as e:
         logger.error(f"Error fetching repo status: {e}")
         raise web.HTTPInternalServerError(text="Internal Server Error")
