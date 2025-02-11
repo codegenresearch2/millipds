@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class Database:
-    def __init__(self, db_path):
+    def __init__(self, db_path: str):
         self.db_path = db_path
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
@@ -33,7 +33,7 @@ class Database:
         self.conn.commit()
         logger.info("Tables initialized successfully.")
 
-    def add_user(self, username, password):
+    def add_user(self, username: str, password: str) -> int:
         hasher = argon2.PasswordHasher()
         hashed_password = hasher.hash(password)
         cursor = self.conn.cursor()
@@ -44,7 +44,7 @@ class Database:
         logger.info(f"User {username} added successfully.")
         return cursor.lastrowid
 
-    def add_revoked_token(self, token):
+    def add_revoked_token(self, token: str):
         cursor = self.conn.cursor()
         cursor.execute('''
             INSERT INTO revoked_token (token) VALUES (?)
@@ -52,7 +52,7 @@ class Database:
         self.conn.commit()
         logger.info(f"Revoked token {token} added successfully.")
 
-    def is_token_revoked(self, token):
+    def is_token_revoked(self, token: str) -> bool:
         cursor = self.conn.cursor()
         cursor.execute('''
             SELECT 1 FROM revoked_token WHERE token = ?
@@ -60,10 +60,10 @@ class Database:
         return cursor.fetchone() is not None
 
 class AuthServer:
-    def __init__(self, db_path):
+    def __init__(self, db_path: str):
         self.db = Database(db_path)
 
-    def login(self, username, password):
+    def login(self, username: str, password: str):
         cursor = self.conn.cursor()
         cursor.execute('''
             SELECT * FROM user WHERE username = ?
@@ -80,12 +80,14 @@ class AuthServer:
         logger.warning(f"Login attempt failed for user {username} due to non-existent user.")
         return jsonify({'error': 'Invalid credentials'}), 401, {'Content-Type': 'application/json'}
 
-    def logout(self, token):
+    def logout(self, token: str):
         self.db.add_revoked_token(token)
         logger.info(f"User logged out successfully with token {token}.")
         return '', 204, {'Content-Type': 'application/json'}
 
-    def _generate_token(self):
+    def _generate_token(self) -> str:
+        import random
+        import string
         return ''.join(random.choices(string.ascii_letters + string.digits, k=32))
 
 # Example usage
