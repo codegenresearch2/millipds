@@ -1,10 +1,10 @@
-# TODO: some smarter way of handling migrations
-
 import apsw
 import apsw.bestpractice
 from millipds import static_config
 
 apsw.bestpractice.apply(apsw.bestpractice.recommended)
+
+# TODO: some smarter way of handling migrations
 
 with apsw.Connection(static_config.MAIN_DB_PATH) as con:
     version_now, *_ = con.execute("SELECT db_version FROM config").fetchone()
