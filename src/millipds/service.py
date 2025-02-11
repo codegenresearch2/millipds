@@ -1,7 +1,8 @@
 import importlib.metadata
 import logging
-import os
-import asyncio
+import time
+import io
+import hashlib
 from typing import Optional
 
 import apsw
@@ -229,14 +230,14 @@ async def server_create_session(request: web.Request):
         raise web.HTTPUnauthorized(text="incorrect identifier or password")
 
     # prepare access tokens
-    unix_seconds_now = int(time.time())
+    unix_time_now = int(time.time())
     access_jwt = jwt.encode(
         {
             "scope": "com.atproto.access",
             "aud": db.config["pds_did"],
             "sub": did,
-            "iat": unix_seconds_now,
-            "exp": unix_seconds_now + 60 * 60 * 24,  # 24h
+            "iat": unix_time_now,
+            "exp": unix_time_now + 60 * 60 * 24,  # 24h
         },
         db.config["jwt_access_secret"],
         "HS256",
@@ -247,8 +248,8 @@ async def server_create_session(request: web.Request):
             "scope": "com.atproto.refresh",
             "aud": db.config["pds_did"],
             "sub": did,
-            "iat": unix_seconds_now,
-            "exp": unix_seconds_now + 60 * 60 * 24 * 90,  # 90 days!
+            "iat": unix_time_now,
+            "exp": unix_time_now + 60 * 60 * 24 * 90,  # 90 days!
         },
         db.config["jwt_access_secret"],
         "HS256",
@@ -287,87 +288,6 @@ async def server_get_service_auth(request: web.Request):
                 signing_key,
                 algorithm=crypto.jwt_signature_alg_for_pem(signing_key),
             )
-        }
-    )
-
-
-@routes.post("/xrpc/com.atproto.identity.updateHandle")
-@authenticated
-async def identity_update_handle(request: web.Request):
-    req_json: dict = await request.json()
-    handle = req_json.get("handle")
-    if handle is None:
-        raise web.HTTPBadRequest(text="missing or invalid handle")
-    # TODO: actually validate it, and update the db!!!
-    # (I'm writing this half-baked version just so I can send firehose #identity events)
-    with get_db(request).new_con() as con:
-        # TODO: refactor to avoid duplicated logic between here and apply_writes
-        firehose_seq = con.execute(
-            "SELECT IFNULL(MAX(seq), 0) + 1 FROM firehose"
-        ).fetchone()[0]
-        firehose_bytes = cbrrr.encode_dag_cbor(
-            {"t": "#identity", "op": 1}
-        ) + cbrrr.encode_dag_cbor(
-            {
-                "seq": firehose_seq,
-                "did": request["authed_did"],
-                "time": util.iso_string_now(),
-                "handle": handle,
-            }
-        )
-        con.execute(
-            "INSERT INTO firehose (seq, timestamp, msg) VALUES (?, ?, ?)",
-            (
-                firehose_seq,
-                0,
-                firehose_bytes,
-            ),  # TODO: put sensible timestamp here...
-        )
-    await atproto_repo.firehose_broadcast(
-        request, (firehose_seq, firehose_bytes)
-    )
-
-    # temp hack: #account events shouldn't really be generated here
-    with get_db(request).new_con() as con:
-        # TODO: refactor to avoid duplicated logic between here and apply_writes
-        firehose_seq = con.execute(
-            "SELECT IFNULL(MAX(seq), 0) + 1 FROM firehose"
-        ).fetchone()[0]
-        firehose_bytes = cbrrr.encode_dag_cbor(
-            {"t": "#account", "op": 1}
-        ) + cbrrr.encode_dag_cbor(
-            {
-                "seq": firehose_seq,
-                "did": request["authed_did"],
-                "time": util.iso_string_now(),
-                "active": True,
-            }
-        )
-        con.execute(
-            "INSERT INTO firehose (seq, timestamp, msg) VALUES (?, ?, ?)",
-            (
-                firehose_seq,
-                0,
-                firehose_bytes,
-            ),  # TODO: put sensible timestamp here...
-        )
-    await atproto_repo.firehose_broadcast(
-        request, (firehose_seq, firehose_bytes)
-    )
-
-    return web.Response()
-
-
-@routes.get("/xrpc/com.atproto.server.getSession")
-@authenticated
-async def server_get_session(request: web.Request):
-    return web.json_response(
-        {
-            "handle": get_db(request).handle_by_did(request["authed_did"]),
-            "did": request["authed_did"],
-            "email": "tfw_no@email.invalid",  # this and below are just here for testing lol
-            "emailConfirmed": True,
-            # "didDoc": {}, # iiuc this is only used for entryway usecase?
         }
     )
 
