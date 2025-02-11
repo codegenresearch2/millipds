@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 # https://rogerbinns.github.io/apsw/bestpractice.html
 apsw.bestpractice.apply(apsw.bestpractice.recommended)
 
-
 class DBBlockStore(BlockStore):
 	"""
 	Adapt the db for consumption by the atmst library
@@ -52,7 +51,6 @@ class DBBlockStore(BlockStore):
 
 	def put_block(self, key: bytes, value: bytes) -> None:
 		raise NotImplementedError("TODO?")
-
 
 class Database:
 	def __init__(self, path: str = static_config.MAIN_DB_PATH) -> None:
@@ -230,14 +228,29 @@ class Database:
 			"""
 		)
 
-		# likewise, a null did represents a failed resolution
+		# Adding new table for migrations
 		self.con.execute(
 			"""
-			CREATE TABLE handle_cache(
-				handle TEXT PRIMARY KEY NOT NULL,
-				did TEXT,
-				created_at INTEGER NOT NULL,
-				expires_at INTEGER NOT NULL
+			CREATE TABLE migrations(
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				name TEXT NOT NULL,
+				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)
+			"""
+		)
+
+		# Enhancing data structure with additional caching
+		self.con.execute(
+			"""
+			CREATE TABLE user_cache(
+				id INTEGER PRIMARY KEY NOT NULL,
+				did TEXT NOT NULL,
+				handle TEXT NOT NULL,
+				signing_key TEXT NOT NULL,
+				head BLOB NOT NULL,
+				rev TEXT NOT NULL,
+				commit_bytes BLOB NOT NULL,
+				last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			)
 			"""
 		)
