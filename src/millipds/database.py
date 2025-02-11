@@ -230,18 +230,6 @@ class Database:
 			"""
 		)
 
-		# likewise, a null did represents a failed resolution
-		self.con.execute(
-			"""
-			CREATE TABLE handle_cache(
-				handle TEXT PRIMARY KEY NOT NULL,
-				did TEXT,
-				created_at INTEGER NOT NULL,
-				expires_at INTEGER NOT NULL
-			)
-			"""
-		)
-
 	def update_config(
 		self,
 		pds_pfx: Optional[str] = None,
@@ -395,8 +383,7 @@ class Database:
 		return row[0]
 
 	def list_repos(
-		self,
-	) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
+		) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
 		return [
 			(did, cbrrr.CID(head), rev)
 			for did, head, rev in self.con.execute(
