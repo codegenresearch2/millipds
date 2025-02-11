@@ -118,6 +118,7 @@ class DIDResolver:
                 return json.loads(e.partial)
 
     async def resolve_did_web(self, did: str) -> DIDDoc:
+        # TODO: support port numbers on localhost?
         if not re.match(r"^did:web:[a-z0-9\.\-]+$", did):
             raise ValueError("Invalid did:web")
         host = did.rpartition(":")[2]
