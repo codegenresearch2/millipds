@@ -3,7 +3,7 @@ from aiohttp import TCPConnector, ClientSession
 import aiohttp.connector
 from aiohttp.resolver import DefaultResolver, AbstractResolver
 
-# Monkeypatch to force all hosts to go through the resolver
+# XXX: Monkeypatch to force all hosts to go through the resolver
 # This is a temporary solution to ensure that bare IPs in the URL are not bypassed,
 # where our SSRF check is. See https://github.com/aio-libs/aiohttp/discussions/10224
 # for more context.
@@ -18,9 +18,9 @@ class SSRFSafeResolverWrapper(AbstractResolver):
 
     async def resolve(self, host: str, port: int, family: int):
         result = await self.resolver.resolve(host, port, family)
-        for host in result:
-            if ipaddress.ip_address(host["host"]).is_private:
-                raise SSRFException("Can't connect to private IP: " + host["host"])
+        for host_info in result:
+            if ipaddress.ip_address(host_info["host"]).is_private:
+                raise SSRFException(f"Can't connect to private IP: {host_info['host']}")
         return result
 
     async def close(self) -> None:
