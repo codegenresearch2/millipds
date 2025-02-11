@@ -83,6 +83,7 @@ class DIDResolver:
         )
 
         # update the cache (note: we cache failures too, but with a shorter TTL)
+        # TODO: only replace the cache entry if the existing entry is also None
         db.con.execute(
             "INSERT OR REPLACE INTO did_cache (did, doc, created_at, expires_at) VALUES (?, ?, ?, ?)",
             (
