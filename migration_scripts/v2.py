@@ -10,7 +10,7 @@ from millipds import static_config
 with apsw.Connection(static_config.MAIN_DB_PATH) as con:
     version_now, *_ = con.execute("SELECT db_version FROM config").fetchone()
 
-    assert version_now == 1
+    assert version_now == 1, "Database version mismatch"
 
     # Create did_cache table
     con.execute(
