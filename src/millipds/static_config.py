@@ -1,12 +1,8 @@
-"""
-Hardcoded configs (it is not expected that end-users need to edit this file)
+# Hardcoded configs (it is not expected that end-users need to edit this file)
 
-(some of this stuff might want to be broken out into a proper config file, eventually)
-"""
+# (some of this stuff might want to be broken out into a proper config file, eventually)
 
-HTTP_LOG_FMT = (
-    '%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Agent}i'
-)
+HTTP_LOG_FMT = '%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Agent}i'
 
 GROUPNAME = "millipds-sock"
 
