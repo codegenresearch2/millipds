@@ -54,6 +54,9 @@ async def test_pds(aiolib):
 			db_path = f"{tempdir}/millipds-0000.db"
 			db = database.Database(path=db_path)
 
+			# Initialize the database schema
+			db.initialize_schema()
+
 			hostname = "localhost:0"
 			db.update_config(
 				pds_pfx=f"http://{hostname}",
@@ -370,3 +373,14 @@ async def test_sync_getRecord_existent(s, populated_pds_host):
 		assert proof_car  # nonempty
 		# TODO: make sure the proof is valid, and contains the record
 		assert b"test record" in proof_car
+
+async def test_serviceauth(s, pds_host, auth_headers):
+	# Test service authentication
+	async with s.get(
+		pds_host + "/xrpc/com.atproto.server.getServiceAuth",
+		headers=auth_headers,
+		params={"aud": "example.com", "lxm": "com.example.service"},
+	) as r:
+		assert r.status == 200
+		response = await r.json()
+		assert "token" in response
