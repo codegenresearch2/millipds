@@ -19,6 +19,13 @@ routes = web.RouteTableDef()
 BLOCK_SIZE = 0x10000  # 64k for now, might tweak this upwards, for perf?
 
 async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
+    """
+    Broadcasts a message to the firehose queues.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+        msg (Tuple[int, bytes]): A tuple containing the sequence number and the message bytes.
+    """
     async with get_firehose_queues_lock(request):
         queues_to_remove = set()
         active_queues = get_firehose_queues(request)
@@ -26,9 +33,9 @@ async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
             try:
                 queue.put_nowait(msg)
             except asyncio.QueueFull:
-                while not queue.empty():
+                while not queue.empty():  # flush what's left of the queue
                     queue.get_nowait()
-                queue.put_nowait(None)
+                queue.put_nowait(None)  # signal end-of-stream
                 queues_to_remove.add(queue)
         active_queues -= queues_to_remove
 
