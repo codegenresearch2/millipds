@@ -167,10 +167,10 @@ async def identity_resolve_handle(request: web.Request):
     """
     handle = request.query.get("handle")
     if handle is None:
-        raise web.HTTPBadRequest(text="missing or invalid handle")
+        raise web.HTTPBadRequest(text="Missing or invalid handle")
     did = get_db(request).did_by_handle(handle)
     if not did:
-        raise web.HTTPNotFound(text="no user by that handle exists on this PDS")
+        raise web.HTTPNotFound(text="No user by that handle exists on this PDS")
     return web.json_response({"did": did})
 
 # Route for describing the server
@@ -195,20 +195,20 @@ async def server_create_session(request: web.Request):
     try:
         req_json: dict = await request.json()
     except json.JSONDecodeError:
-        raise web.HTTPBadRequest(text="expected JSON")
+        raise web.HTTPBadRequest(text="Expected JSON")
 
     identifier = req_json.get("identifier")
     password = req_json.get("password")
     if not (isinstance(identifier, str) and isinstance(password, str)):
-        raise web.HTTPBadRequest(text="invalid identifier or password")
+        raise web.HTTPBadRequest(text="Invalid identifier or password")
 
     db = get_db(request)
     try:
         did, handle = db.verify_account_login(did_or_handle=identifier, password=password)
     except KeyError:
-        raise web.HTTPUnauthorized(text="user not found")
+        raise web.HTTPUnauthorized(text="User not found")
     except ValueError:
-        raise web.HTTPUnauthorized(text="incorrect identifier or password")
+        raise web.HTTPUnauthorized(text="Incorrect identifier or password")
 
     unix_seconds_now = int(time.time())
     access_jwt = jwt.encode({
@@ -245,7 +245,7 @@ async def identity_update_handle(request: web.Request):
     req_json: dict = await request.json()
     handle = req_json.get("handle")
     if handle is None:
-        raise web.HTTPBadRequest(text="missing or invalid handle")
+        raise web.HTTPBadRequest(text="Missing or invalid handle")
 
     with get_db(request).new_con() as con:
         firehose_seq = con.execute("SELECT IFNULL(MAX(seq), 0) + 1 FROM firehose").fetchone()[0]
@@ -324,10 +324,10 @@ async def run(db: database.Database, client: aiohttp.ClientSession, sock_path: O
     await runner.setup()
 
     if sock_path is None:
-        logger.info(f"listening on http://{host}:{port}")
+        logger.info(f"Listening on http://{host}:{port}")
         site = web.TCPSite(runner, host=host, port=port)
     else:
-        logger.info(f"listening on {sock_path}")
+        logger.info(f"Listening on {sock_path}")
         site = web.UnixSite(runner, path=sock_path)
 
     await site.start()
