@@ -1,4 +1,4 @@
-from typing import Optional, Set, Tuple
+from typing import Optional
 import importlib.metadata
 import logging
 import asyncio
@@ -33,13 +33,16 @@ routes = web.RouteTableDef()
 # Middleware for ATProto service proxying
 @web.middleware
 async def atproto_service_proxy_middleware(request: web.Request, handler):
+    # Check if the request has an ATProto proxy header
     atproto_proxy = request.headers.get("atproto-proxy")
     if atproto_proxy:
+        # If it does, use the service proxy to handle the request
         return await service_proxy(request, atproto_proxy)
 
+    # If not, handle the request normally
     res: web.Response = await handler(request)
 
-    # Add security headers to the response
+    # Add security headers to the response to prevent common web vulnerabilities
     res.headers.setdefault("X-Frame-Options", "DENY")
     res.headers.setdefault("X-Content-Type-Options", "nosniff")
     res.headers.setdefault("Content-Security-Policy", "default-src 'none'; sandbox")
@@ -49,7 +52,9 @@ async def atproto_service_proxy_middleware(request: web.Request, handler):
 # Route for the homepage
 @routes.get("/")
 async def hello(request: web.Request):
+    # Get the version of the millipds package
     version = importlib.metadata.version("millipds")
+    # Return a welcome message with the version number
     msg = f"""
                           ,dPYb, ,dPYb,
                           IP'`Yb IP'`Yb
@@ -77,7 +82,9 @@ https://github.com/DavidBuchanan314/millipds
 # Route for serving the server's did:web document
 @routes.get("/.well-known/did.json")
 async def well_known_did_web(request: web.Request):
+    # Get the server's configuration
     cfg = get_db(request).config
+    # Return the did:web document as JSON
     return web.json_response(
         {
             "@context": ["https://www.w3.org/ns/did/v1"],
@@ -95,6 +102,7 @@ async def well_known_did_web(request: web.Request):
 # Route for serving robots.txt
 @routes.get("/robots.txt")
 async def robots_txt(request: web.Request):
+    # Return the contents of robots.txt
     return web.Response(
         text="""
 # this is an atproto pds. please crawl it.
@@ -107,10 +115,11 @@ Allow: /
 # Route for serving favicon.ico
 @routes.get("/favicon.ico")
 async def health(request: web.Request):
+    # Return a simple SVG image as the favicon
     return web.Response(
         text="""
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-                <text x="50%" y="0.95em" font-size="90" text-anchor="middle">🌐</text>
+                <text x="50%" y="0.95em" font-size="90" text-anchor="middle">ðŸŒ</text>
             </svg>
         """,
         content_type="image/svg+xml",
@@ -120,13 +129,15 @@ async def health(request: web.Request):
 # Route for health check
 @routes.get("/xrpc/_health")
 async def health(request: web.Request):
+    # Get the version of the millipds package
     version = importlib.metadata.version("millipds")
+    # Return the version number as JSON
     return web.json_response({"version": f"millipds v{version}"})
 
 # Route for getting user preferences
 @routes.get("/xrpc/app.bsky.actor.getPreferences")
 async def actor_get_preferences(request: web.Request):
-    # Return user preferences in JSON format
+    # Return user preferences as JSON
     return web.json_response({"preferences": []})
 
 # Route for updating user preferences
@@ -136,30 +147,38 @@ async def actor_put_preferences(request: web.Request):
     req_json: dict = await request.json()
     preferences = req_json.get("preferences")
 
-    # Update the user preferences in the database
-    # TODO: Implement this
+    # TODO: Implement the logic to update the user preferences in the database
 
+    # Return an empty response to indicate success
     return web.Response()
 
 # Route for resolving a handle to a DID
 @routes.get("/xrpc/com.atproto.identity.resolveHandle")
 async def identity_resolve_handle(request: web.Request):
+    # Extract the handle from the query parameters
     handle = request.query.get("handle")
     if handle is None:
+        # If the handle is missing or invalid, return a bad request error
         raise web.HTTPBadRequest(text="Missing or invalid handle")
 
+    # Look up the DID associated with the handle
     did = get_db(request).did_by_handle(handle)
     if not did:
+        # If no user with that handle exists on this PDS, return a not found error
         raise web.HTTPNotFound(text="No user by that handle exists on this PDS")
 
+    # Return the DID as JSON
     return web.json_response({"did": did})
 
 # Route for describing the server
 @routes.get("/xrpc/com.atproto.server.describeServer")
 async def server_describe_server(request: web.Request):
+    # Get the server's configuration
+    cfg = get_db(request).config
+    # Return the server's DID and available user domains as JSON
     return web.json_response(
         {
-            "did": get_db(request).config["pds_did"],
+            "did": cfg["pds_did"],
             "availableUserDomains": [],
         }
     )
@@ -168,25 +187,32 @@ async def server_describe_server(request: web.Request):
 @routes.post("/xrpc/com.atproto.server.createSession")
 async def server_create_session(request: web.Request):
     try:
+        # Extract the identifier and password from the request JSON
         req_json: dict = await request.json()
     except json.JSONDecodeError:
+        # If the request JSON is invalid, return a bad request error
         raise web.HTTPBadRequest(text="Expected JSON")
 
     identifier = req_json.get("identifier")
     password = req_json.get("password")
     if not (isinstance(identifier, str) and isinstance(password, str)):
+        # If the identifier or password is missing or invalid, return a bad request error
         raise web.HTTPBadRequest(text="Invalid identifier or password")
 
+    # Verify the account login credentials
     db = get_db(request)
     try:
         did, handle = db.verify_account_login(
             did_or_handle=identifier, password=password
         )
     except KeyError:
+        # If the user is not found, return an unauthorized error
         raise web.HTTPUnauthorized(text="User not found")
     except ValueError:
+        # If the identifier or password is incorrect, return an unauthorized error
         raise web.HTTPUnauthorized(text="Incorrect identifier or password")
 
+    # Generate access and refresh JWTs
     unix_seconds_now = int(time.time())
     access_jwt = jwt.encode(
         {
@@ -212,6 +238,7 @@ async def server_create_session(request: web.Request):
         "HS256",
     )
 
+    # Return the session information as JSON
     return web.json_response(
         {
             "did": did,
@@ -225,15 +252,18 @@ async def server_create_session(request: web.Request):
 @routes.post("/xrpc/com.atproto.identity.updateHandle")
 @authenticated
 async def identity_update_handle(request: web.Request):
+    # Extract the new handle from the request JSON
     req_json: dict = await request.json()
     handle = req_json.get("handle")
     if handle is None:
+        # If the handle is missing or invalid, return a bad request error
         raise web.HTTPBadRequest(text="Missing or invalid handle")
 
-    # TODO: Validate the handle and update the database
+    # TODO: Implement the logic to validate the handle and update the database
 
     # Generate firehose events for handle update
     with get_db(request).new_con() as con:
+        # TODO: Refactor to avoid duplicated logic between here and apply_writes
         firehose_seq = con.execute(
             "SELECT IFNULL(MAX(seq), 0) + 1 FROM firehose"
         ).fetchone()[0]
@@ -261,6 +291,7 @@ async def identity_update_handle(request: web.Request):
 
     # Generate firehose events for account update
     with get_db(request).new_con() as con:
+        # TODO: Refactor to avoid duplicated logic between here and apply_writes
         firehose_seq = con.execute(
             "SELECT IFNULL(MAX(seq), 0) + 1 FROM firehose"
         ).fetchone()[0]
@@ -286,16 +317,22 @@ async def identity_update_handle(request: web.Request):
         request, (firehose_seq, firehose_bytes)
     )
 
+    # Return an empty response to indicate success
     return web.Response()
 
 # Route for getting session information
 @routes.get("/xrpc/com.atproto.server.getSession")
 @authenticated
 async def server_get_session(request: web.Request):
+    # Get the user's handle and DID
+    handle = get_db(request).handle_by_did(request["authed_did"])
+    did = request["authed_did"]
+
+    # Return the session information as JSON
     return web.json_response(
         {
-            "handle": get_db(request).handle_by_did(request["authed_did"]),
-            "did": request["authed_did"],
+            "handle": handle,
+            "did": did,
             "email": "tfw_no@email.invalid",
             "emailConfirmed": True,
         }
@@ -305,6 +342,7 @@ async def server_get_session(request: web.Request):
 def construct_app(
     routes, db: database.Database, client: aiohttp.ClientSession
 ) -> web.Application:
+    # Configure CORS middleware
     cors = cors_middleware(
         allow_all=True,
         expose_headers=["*"],
@@ -314,10 +352,12 @@ def construct_app(
         max_age=100_000_000,
     )
 
+    # Set the User-Agent header for outgoing requests
     client.headers.update(
         {"User-Agent": importlib.metadata.version("millipds")}
     )
 
+    # Create the web application and configure it with middleware and routes
     app = web.Application(middlewares=[cors, atproto_service_proxy_middleware])
     app[MILLIPDS_DB] = db
     app[MILLIPDS_AIOHTTP_CLIENT] = client
@@ -328,7 +368,7 @@ def construct_app(
     app.add_routes(atproto_sync.routes)
     app.add_routes(atproto_repo.routes)
 
-    # Fallback service proxying for bsky appview routes
+    # Add fallback service proxying for bsky appview routes
     app.add_routes(
         [
             web.get("/xrpc/app.bsky.{_:.*}", service_proxy),
@@ -346,10 +386,12 @@ async def run(
     host: str,
     port: int,
 ):
+    # Construct the web application
     app = construct_app(routes, db, client)
     runner = web.AppRunner(app, access_log_format=static_config.HTTP_LOG_FMT)
     await runner.setup()
 
+    # Configure the site to listen on the specified socket path or host/port
     if sock_path is None:
         logger.info(f"Listening on http://{host}:{port}")
         site = web.TCPSite(runner, host=host, port=port)
@@ -357,8 +399,10 @@ async def run(
         logger.info(f"Listening on {sock_path}")
         site = web.UnixSite(runner, path=sock_path)
 
+    # Start the site
     await site.start()
 
+    # If using a socket path, set the group access and permissions
     if sock_path:
         import grp
 
@@ -376,5 +420,6 @@ async def run(
 
         os.chmod(sock_path, 0o770)
 
+    # Sleep forever to keep the application running
     while True:
-        await asyncio.sleep(3600)  # Sleep forever
+        await asyncio.sleep(3600)
