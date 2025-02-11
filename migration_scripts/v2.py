@@ -12,17 +12,7 @@ with apsw.Connection(static_config.MAIN_DB_PATH) as con:
 
 	assert version_now == 1
 
-	con.execute(
-		"""
-		CREATE TABLE did_cache(
-			did TEXT PRIMARY KEY NOT NULL,
-			doc TEXT,
-			created_at INTEGER NOT NULL,
-			expires_at INTEGER NOT NULL
-		)
-		"""
-	)
-
+	# Create handle_cache table
 	con.execute(
 		"""
 		CREATE TABLE handle_cache(
