@@ -2,7 +2,6 @@ import logging
 import jwt
 from aiohttp import web
 from .app_util import *
-import time
 
 logger = logging.getLogger(__name__)
 
