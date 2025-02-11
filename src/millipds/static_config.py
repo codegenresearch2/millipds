@@ -4,13 +4,11 @@ Hardcoded configs (it is not expected that end-users need to edit this file)
 (some of this stuff might want to be broken out into a proper config file, eventually)
 """
 
-HTTP_LOG_FMT = (
-	'%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Agent}i"'
-)
+HTTP_LOG_FMT = '%{X-Forwarded-For}i %t (%Tf) "%r" %s %b "%{Referer}i" "%{User-Agent}i'
 
 GROUPNAME = "millipds-sock"
 
-# Update MILLIPDS_DB_VERSION to reflect the correct version
+# Ensure comments are placed directly above the relevant lines of code
 MILLIPDS_DB_VERSION = 2  # this gets bumped if we make breaking changes to the db schema
 
 ATPROTO_REPO_VERSION_3 = 3  # might get bumped if the atproto spec changes
