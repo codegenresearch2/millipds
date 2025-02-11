@@ -37,29 +37,71 @@ def authenticated(handler):
 			raise web.HTTPUnauthorized(text="token has been revoked")
 
 		try:
-			payload = jwt.decode(
-				token,
-				key=db.config["jwt_access_secret"],
-				algorithms=["HS256"],
-				audience=db.config["pds_did"],
-				options={
-					"require": ["exp", "iat", "scope", "jti", "sub"],  # consider iat?
-					"verify_exp": True,
-					"verify_iat": True,
-					"strict_aud": True,  # may be unnecessary
-				},
+			unverified_payload = jwt.api_jwt.decode_complete(
+				token, options={"verify_signature": False}
 			)
 		except jwt.exceptions.PyJWTError:
 			raise web.HTTPUnauthorized(text="invalid jwt")
 
-		# if we reached this far, the payload must've been signed by us
-		if payload.get("scope") != "com.atproto.access":
-			raise web.HTTPUnauthorized(text="invalid jwt scope")
+		alg = unverified_payload["header"].get("alg")
+		if alg == "HS256":  # symmetric secret
+			try:
+				payload: dict = jwt.decode(
+					jwt=token,
+					key=db.config["jwt_access_secret"],
+					algorithms=["HS256"],
+					audience=db.config["pds_did"],
+					options={
+						"require": ["exp", "iat", "scope", "jti", "sub"],  # consider iat?
+						"verify_exp": True,
+						"verify_iat": True,
+						"strict_aud": True,  # may be unnecessary
+					},
+				)
+			except jwt.exceptions.PyJWTError:
+				raise web.HTTPUnauthorized(text="invalid jwt")
 
-		subject: str = payload.get("sub", "")
-		if not subject.startswith("did:"):
-			raise web.HTTPUnauthorized(text="invalid jwt: invalid subject")
-		request["authed_did"] = subject
+			# if we reached this far, the payload must've been signed by us
+			if payload.get("scope") != "com.atproto.access":
+				raise web.HTTPUnauthorized(text="invalid jwt scope")
+
+			subject: str = payload.get("sub", "")
+			if not subject.startswith("did:"):
+				raise web.HTTPUnauthorized(text="invalid jwt: invalid subject")
+			request["authed_did"] = subject
+		else:  # asymmetric service auth (scoped to a specific lxm)
+			did: str = unverified_payload["payload"]["iss"]
+			if not did.startswith("did:"):
+				raise web.HTTPUnauthorized(text="invalid jwt: invalid issuer")
+			signing_key_pem = db.signing_key_pem_by_did(did)
+			if signing_key_pem is None:
+				raise web.HTTPUnauthorized(text="invalid jwt: unknown issuer")
+			alg = crypto.jwt_signature_alg_for_pem(signing_key_pem)
+			verifying_key = crypto.privkey_from_pem(
+				signing_key_pem
+			).public_key()
+			try:
+				payload = jwt.decode(
+					jwt=token,
+					key=verifying_key,
+					algorithms=[alg],
+					audience=db.config["pds_did"],
+					options={
+						"require": ["exp", "iat", "lxm", "jti", "iss"],
+						"verify_exp": True,
+						"verify_iat": True,
+						"strict_aud": True,  # may be unnecessary
+					},
+				)
+			except jwt.exceptions.PyJWTError:
+				raise web.HTTPUnauthorized(text="invalid jwt")
+
+			request_lxm = request.path.rpartition("/")[2].partition("?")[0]
+			if request_lxm != payload.get("lxm"):
+				raise web.HTTPUnauthorized(text="invalid jwt: bad lxm")
+
+			# everything checks out
+			request["authed_did"] = did
 
 		return await handler(request, *args, **kwargs)
 
