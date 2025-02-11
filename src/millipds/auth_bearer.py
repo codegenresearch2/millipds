@@ -60,7 +60,7 @@ def authenticated(handler):
 
         # Check the issuer (did) of the token
         issuer = payload.get("iss")
-        if not issuer or issuer != db.config["pds_did"]:
+        if not issuer or not issuer.startswith("did:"):
             raise web.HTTPUnauthorized(text="Invalid JWT issuer")
 
         # Set the authenticated DID in the request
