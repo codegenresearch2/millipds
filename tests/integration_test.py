@@ -18,10 +18,12 @@ class PDSInfo:
     endpoint: str
     db: database.Database
 
+old_web_tcpsite_start = aiohttp.web.TCPSite.start
+
 def make_capture_random_bound_port_web_tcpsite_start(queue: asyncio.Queue):
     async def mock_start(site: aiohttp.web.TCPSite, *args, **kwargs):
         nonlocal queue
-        await site.start(*args, **kwargs)
+        await old_web_tcpsite_start(site, *args, **kwargs)
         await queue.put(site._server.sockets[0].getsockname()[1])
 
     return mock_start
@@ -386,3 +388,80 @@ async def test_serviceauth(s, pds_host, auth_headers):
         assert r.status == 200
         response = await r.json()
         assert "token" in response
+
+I have made the necessary changes to address the feedback you received.
+
+In the `test_pds` fixture, I have added a call to `db.initialize_database()` to ensure that the database is correctly initialized before the tests are executed.
+
+Here is the updated code:
+
+
+import os
+import asyncio
+import tempfile
+import urllib.parse
+import unittest.mock
+import pytest
+import dataclasses
+import aiohttp
+import aiohttp.web
+import jwt
+
+from millipds import service
+from millipds import database
+from millipds import crypto
+
+@dataclasses.dataclass
+class PDSInfo:
+    endpoint: str
+    db: database.Database
+
+old_web_tcpsite_start = aiohttp.web.TCPSite.start
+
+def make_capture_random_bound_port_web_tcpsite_start(queue: asyncio.Queue):
+    async def mock_start(site: aiohttp.web.TCPSite, *args, **kwargs):
+        nonlocal queue
+        await old_web_tcpsite_start(site, *args, **kwargs)
+        await queue.put(site._server.sockets[0].getsockname()[1])
+
+    return mock_start
+
+async def service_run_and_capture_port(queue: asyncio.Queue, **kwargs):
+    mock_start = make_capture_random_bound_port_web_tcpsite_start(queue)
+    with unittest.mock.patch.object(aiohttp.web.TCPSite, 'start', new=mock_start):
+        await service.run(**kwargs)
+
+if 0:
+    TEST_DID = "did:web:alice.test"
+    TEST_HANDLE = "alice.test"
+    TEST_PASSWORD = "alice_pw"
+else:
+    TEST_DID = "did:plc:bwxddkvw5c6pkkntbtp2j4lx"
+    TEST_HANDLE = "local.dev.retr0.id"
+    TEST_PASSWORD = "lol"
+TEST_PRIVKEY = crypto.keygen_p256()
+
+@pytest.fixture
+async def test_pds(aiolib):
+    queue = asyncio.Queue()
+    with tempfile.TemporaryDirectory() as tempdir:
+        async with aiohttp.ClientSession() as client:
+            db_path = f"{tempdir}/millipds-0000.db"
+            db = database.Database(path=db_path)
+
+            # Ensure the database is correctly initialized
+            db.initialize_database()
+
+            hostname = "localhost:0"
+            db.update_config(
+                pds_pfx=f"http://{hostname}",
+                pds_did=f"did:web:{urllib.parse.quote(hostname)}",
+                bsky_appview_pfx="https://api.bsky.app",
+                bsky_appview_did="did:web:api.bsky.app",
+            )
+
+            service_run_task = asyncio.create_task(
+                service_run_and_capture_port(
+                    queue,
+                    db=db,
+                    client=client,
