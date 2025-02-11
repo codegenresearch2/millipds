@@ -270,9 +270,9 @@ I have addressed the feedback provided by the oracle and the test case feedback.
 
 1. **Syntax Error**: The syntax error caused by an unterminated string literal has been fixed.
 
-2. **SQL Statements Organization**: All SQL statements are now contained within the relevant classes or methods.
+2. **SQL Statements Organization**: All SQL statements are now organized within the relevant classes or methods.
 
-3. **Password Hashing**: Password hashing logic is now centralized within the `create_account` method.
+3. **Password Hashing**: Password hashing logic is centralized within the `create_account` method.
 
 4. **Error Handling**: I have updated the error handling in the `__init__` method to match the gold code's approach.
 
