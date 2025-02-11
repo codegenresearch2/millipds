@@ -1,6 +1,5 @@
 import logging
 import jwt
-import time
 from aiohttp import web
 
 logger = logging.getLogger(__name__)
@@ -16,10 +15,6 @@ def authenticated(handler):
     The token's scope is also checked to ensure it has the necessary permissions.
     """
     async def authentication_handler(request: web.Request, *args, **kwargs):
-        # Import time module to calculate current time
-        if not 'time' in globals():
-            raise ImportError("The 'time' module is not available. Please import it to use time-related functions.")
-        
         # Extract the auth token
         auth = request.headers.get("Authorization")
         if auth is None:
