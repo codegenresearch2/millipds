@@ -53,20 +53,18 @@ class DIDResolver:
 		# try the db first
 		now = int(time.time())
 		row = db.con.execute(
-			"SELECT doc FROM did_cache WHERE did=? AND expires_at>?", (did, now)
+			"SELECT doc, expires_at FROM did_cache WHERE did=?", (did,)
 		).fetchone()
 
 		# cache hit
-		if row is not None:
+		if row is not None and row['expires_at'] > now:
 			self.hits += 1
-			doc = row[0]
+			doc = row['doc']
 			return None if doc is None else json.loads(doc)
 
 		# cache miss
 		self.misses += 1
-		logger.info(
-			f"DID cache miss for {did}. Total hits: {self.hits}, Total misses: {self.misses}"
-		)
+		logger.info(f"DID cache miss for {did}. Total hits: {self.hits}, Total misses: {self.misses}")
 		try:
 			doc = await self.resolve_uncached(did)
 			logger.info(f"DID {did} resolved successfully.")
@@ -75,7 +73,7 @@ class DIDResolver:
 			doc = None
 
 		# update the cache
-		expires_at = int(time.time()) + (
+		expires_at = now + (
 			static_config.DID_CACHE_ERROR_TTL
 			if doc is None
 			else static_config.DID_CACHE_TTL
