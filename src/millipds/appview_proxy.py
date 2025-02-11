@@ -1,28 +1,15 @@
 from typing import Optional
 import logging
 import time
-
 import jwt
 from aiohttp import web
-
 from . import crypto
 from .auth_bearer import authenticated
 from .app_util import *
-from .did import DIDResolver
+from .did import DIDResolver, get_did_resolver
 
 logger = logging.getLogger(__name__)
 
-# TODO: this should be done via actual DID resolution, not hardcoded!
-SERVICE_ROUTES = {
-    "did:web:api.bsky.chat#bsky_chat": "https://api.bsky.chat",
-    "did:web:discover.bsky.app#bsky_fg": "https://discover.bsky.app",
-    "did:plc:ar7c4by46qjdydhdevvrndac#atproto_labeler": "https://mod.bsky.app",
-}
-
-# Add DID resolver to the app
-did_resolver = DIDResolver()
-
-@authenticated
 async def service_proxy(request: web.Request, service: Optional[str] = None):
     """
     If `service` is None, default to bsky appview (per details in db config)
@@ -31,18 +18,19 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     # TODO: verify valid lexicon method?
     logger.info(f"proxying lxm {lxm}")
     db = get_db(request)
+    did_resolver = get_did_resolver(request)
+    
     if service:
-        service_did = service.partition("#")[0]
-        service_route = SERVICE_ROUTES.get(service)
-        if service_route is None:
-            return web.HTTPBadRequest(f"unable to resolve service {service!r}")
+        try:
+            resolved_did = await did_resolver.resolve(service)
+            service_did = resolved_did.did
+            service_route = resolved_did.service
+        except Exception as e:
+            logger.error(f"DID resolution failed: {e}")
+            return web.HTTPInternalServerError(text="DID resolution failed")
     else:
         service_did = db.config["bsky_appview_did"]
         service_route = db.config["bsky_appview_pfx"]
-
-    # Log successful DID resolutions for tracking
-    resolved_did = await did_resolver.resolve(service_did)
-    logger.info(f"DID resolved successfully: {resolved_did}")
 
     signing_key = db.signing_key_pem_by_did(request["authed_did"])
     auth_headers = {
