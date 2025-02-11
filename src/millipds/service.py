@@ -1,4 +1,4 @@
-from typing import Optional, Set, Tuple
+from typing import Optional
 import importlib.metadata
 import logging
 import asyncio
@@ -119,7 +119,7 @@ Allow: /
 
 # Route for the favicon
 @routes.get("/favicon.ico")
-async def health(request: web.Request):
+async def favicon(request: web.Request):
     """
     Route for the favicon.
     Returns an SVG image as the favicon.
