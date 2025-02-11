@@ -186,17 +186,6 @@ class Database:
             """
         )
 
-        self.con.execute(
-            """
-            CREATE TABLE handle_cache(
-                handle TEXT PRIMARY KEY NOT NULL,
-                did TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL
-            )
-            """
-        )
-
     @cached_property
     def config(self) -> Dict[str, object]:
         config_fields = (
