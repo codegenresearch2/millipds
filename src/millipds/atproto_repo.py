@@ -26,18 +26,14 @@ async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
         request (web.Request): The HTTP request object.
         msg (Tuple[int, bytes]): A tuple containing the sequence number and the message bytes.
     """
-    async with get_firehose_queues_lock(request):
-        queues_to_remove = set()
-        active_queues = get_firehose_queues(request)
-        for queue in active_queues:
-            try:
-                queue.put_nowait(msg)
-            except asyncio.QueueFull:
-                while not queue.empty():  # flush what's left of the queue
-                    queue.get_nowait()
-                queue.put_nowait(None)  # signal end-of-stream
-                queues_to_remove.add(queue)
-        active_queues -= queues_to_remove
+    active_queues = get_firehose_queues(request)
+    for queue in active_queues:
+        try:
+            queue.put_nowait(msg)
+        except asyncio.QueueFull:
+            while not queue.empty():  # flush what's left of the queue
+                queue.get_nowait()
+            queue.put_nowait(None)  # signal end-of-stream
 
 async def apply_writes_and_emit_firehose(
     request: web.Request, req_json: dict
@@ -45,7 +41,7 @@ async def apply_writes_and_emit_firehose(
     if req_json["repo"] != request["authed_did"]:
         raise web.HTTPUnauthorized(text="not authed for that repo")
     try:
-        res, firehose_seq, firehose_bytes = await repo_ops.apply_writes(
+        res = await repo_ops.apply_writes(
             get_db(request),
             request["authed_did"],
             req_json["writes"],
@@ -55,7 +51,7 @@ async def apply_writes_and_emit_firehose(
         logger.error(f"Error applying writes: {e}")
         raise web.HTTPInternalServerError(text="Internal server error")
     
-    await firehose_broadcast(request, (firehose_seq, firehose_bytes))
+    await firehose_broadcast(request, (res["firehose_seq"], res["firehose_bytes"]))
     return res
 
 @routes.post("/xrpc/com.atproto.repo.applyWrites")
@@ -75,7 +71,7 @@ async def repo_apply_writes(request: web.Request):
 @authenticated
 async def repo_create_record(request: web.Request):
     try:
-        orig = await request.json()
+        orig: dict = await request.json()
         res = await apply_writes_and_emit_firehose(
             request,
             {
@@ -109,7 +105,7 @@ async def repo_create_record(request: web.Request):
 @authenticated
 async def repo_put_record(request: web.Request):
     try:
-        orig = await request.json()
+        orig: dict = await request.json()
         res = await apply_writes_and_emit_firehose(
             request,
             {
@@ -144,7 +140,7 @@ async def repo_put_record(request: web.Request):
 @authenticated
 async def repo_delete_record(request: web.Request):
     try:
-        orig = await request.json()
+        orig: dict = await request.json()
         res = await apply_writes_and_emit_firehose(
             request,
             {
@@ -172,31 +168,27 @@ async def repo_describe_repo(request: web.Request):
     if "repo" not in request.query:
         raise web.HTTPBadRequest(text="missing repo")
     did_or_handle = request.query["repo"]
-    try:
-        with get_db(request).new_con(readonly=True) as con:
-            user_id, did, handle = con.execute(
-                "SELECT id, did, handle FROM user WHERE did=? OR handle=?",
-                (did_or_handle, did_or_handle),
-            ).fetchone()
+    with get_db(request).new_con(readonly=True) as con:
+        user_id, did, handle = con.execute(
+            "SELECT id, did, handle FROM user WHERE did=? OR handle=?",
+            (did_or_handle, did_or_handle),
+        ).fetchone()
 
-            return web.json_response(
-                {
-                    "handle": handle,
-                    "did": did,
-                    "didDoc": {},  # TODO
-                    "collections": [
-                        row[0]
-                        for row in con.execute(
-                            "SELECT DISTINCT(nsid) FROM record WHERE repo=?",
-                            (user_id,),
-                        )  # TODO: is this query efficient? do we want an index?
-                    ],
-                    "handleIsCorrect": True,  # TODO
-                }
-            )
-    except Exception as e:
-        logger.error(f"Error in repo_describe_repo: {e}")
-        raise web.HTTPInternalServerError(text="Internal server error")
+        return web.json_response(
+            {
+                "handle": handle,
+                "did": did,
+                "didDoc": {},  # TODO
+                "collections": [
+                    row[0]
+                    for row in con.execute(
+                        "SELECT DISTINCT(nsid) FROM record WHERE repo=?",
+                        (user_id,),
+                    )  # TODO: is this query efficient? do we want an index?
+                ],
+                "handleIsCorrect": True,  # TODO
+            }
+        )
 
 @routes.get("/xrpc/com.atproto.repo.getRecord")
 async def repo_get_record(request: web.Request):
@@ -210,29 +202,25 @@ async def repo_get_record(request: web.Request):
     collection = request.query["collection"]
     rkey = request.query["rkey"]
     cid_in = request.query.get("cid")
-    try:
-        db = get_db(request)
-        row = db.con.execute(
-            "SELECT cid, value FROM record WHERE repo=(SELECT id FROM user WHERE did=? OR handle=?) AND nsid=? AND rkey=?",
-            (did_or_handle, did_or_handle, collection, rkey),
-        ).fetchone()
-        if row is None:
-            return await service_proxy(request)  # forward to appview
-        cid_out, value = row
-        cid_out = cbrrr.CID(cid_out)
-        if cid_in is not None:
-            if cbrrr.CID.decode(cid_in) != cid_out:
-                raise web.HTTPNotFound(text="record not found with matching CID")
-        return web.json_response(
-            {
-                "uri": f"at://{did_or_handle}/{collection}/{rkey}",  # TODO rejig query to get the did out always,
-                "cid": cid_out.encode(),
-                "value": cbrrr.decode_dag_cbor(value, atjson_mode=True),
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error in repo_get_record: {e}")
-        raise web.HTTPInternalServerError(text="Internal server error")
+    db = get_db(request)
+    row = db.con.execute(
+        "SELECT cid, value FROM record WHERE repo=(SELECT id FROM user WHERE did=? OR handle=?) AND nsid=? AND rkey=?",
+        (did_or_handle, did_or_handle, collection, rkey),
+    ).fetchone()
+    if row is None:
+        return await service_proxy(request)  # forward to appview
+    cid_out, value = row
+    cid_out = cbrrr.CID(cid_out)
+    if cid_in is not None:
+        if cbrrr.CID.decode(cid_in) != cid_out:
+            raise web.HTTPNotFound(text="record not found with matching CID")
+    return web.json_response(
+        {
+            "uri": f"at://{did_or_handle}/{collection}/{rkey}",  # TODO rejig query to get the did out always,
+            "cid": cid_out.encode(),
+            "value": cbrrr.decode_dag_cbor(value, atjson_mode=True),
+        }
+    )
 
 @routes.post("/xrpc/com.atproto.repo.uploadBlob")
 @authenticated
