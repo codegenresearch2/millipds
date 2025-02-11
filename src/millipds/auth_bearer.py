@@ -4,6 +4,7 @@ import jwt
 from aiohttp import web
 
 from .app_util import *
+from . import crypto  # Assuming the crypto module is available
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +17,15 @@ def authenticated(handler):
     This decorator supports both symmetric and asymmetric tokens.
     It extracts the token from the Authorization header, validates it,
     and sets the authenticated DID in the request object.
+
+    Args:
+        handler (callable): The route handler function.
+
+    Returns:
+        callable: The decorated route handler function.
     """
     async def authentication_handler(request: web.Request, *args, **kwargs):
-        # extract the auth token
+        # Extract the auth token
         auth = request.headers.get("Authorization")
         if auth is None:
             raise web.HTTPUnauthorized(text="Authentication required")
@@ -26,15 +33,15 @@ def authenticated(handler):
             raise web.HTTPUnauthorized(text="Invalid authentication type")
         token = auth.removeprefix("Bearer ")
 
-        # decode the token without verifying the signature
-        unverified_payload = jwt.decode(token, options={"verify_signature": False})
-        alg = unverified_payload["header"]["alg"]
+        # Decode the token without verifying the signature
+        unverified_payload = jwt.api_jwt.decode_complete(token, options={"verify_signature": False})
+        alg = unverified_payload["header"].get("alg")
 
-        # validate it
+        # Validate the token
         db = get_db(request)
         try:
-            if alg.startswith("HS"):
-                # symmetric token
+            if alg == "HS256":
+                # Symmetric token
                 payload: dict = jwt.decode(
                     jwt=token,
                     key=db.config["jwt_access_secret"],
@@ -48,15 +55,15 @@ def authenticated(handler):
                     },
                 )
             else:
-                # asymmetric token
+                # Asymmetric token
                 iss = unverified_payload.get("iss")
                 if not iss:
                     raise web.HTTPUnauthorized(text="Invalid token: missing issuer")
 
-                # retrieve the signing key for the issuer
+                # Retrieve the signing key for the issuer
                 signing_key = db.signing_key_pem_by_did(iss)
 
-                # extract and validate the lxm from the request path
+                # Extract and validate the lxm from the request path
                 lxm = request.match_info.get("lxm")
                 if not lxm:
                     raise web.HTTPUnauthorized(text="Invalid request: missing lxm")
@@ -82,7 +89,7 @@ def authenticated(handler):
         except jwt.exceptions.PyJWTError as e:
             raise web.HTTPUnauthorized(text=f"Invalid token: {str(e)}")
 
-        # if we reached this far, the payload must've been signed by us
+        # If we reached this far, the payload must've been signed by us
         if payload.get("scope") != "com.atproto.access":
             raise web.HTTPUnauthorized(text="Invalid token scope")
 
