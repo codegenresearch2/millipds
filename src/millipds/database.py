@@ -230,12 +230,12 @@ class Database:
 			"""
 		)
 
-		# likewise, a null did represents a failed resolution
+		# Create handle_cache table
 		self.con.execute(
 			"""
 			CREATE TABLE handle_cache(
 				handle TEXT PRIMARY KEY NOT NULL,
-				did TEXT,
+				did TEXT NOT NULL,
 				created_at INTEGER NOT NULL,
 				expires_at INTEGER NOT NULL
 			)
@@ -372,18 +372,40 @@ class Database:
 
 	def did_by_handle(self, handle: str) -> Optional[str]:
 		row = self.con.execute(
-			"SELECT did FROM user WHERE handle=?", (handle,)
+			"SELECT did FROM handle_cache WHERE handle=?", (handle,)
 		).fetchone()
 		if row is None:
-			return None
+			row = self.con.execute(
+				"SELECT did FROM user WHERE handle=?", (handle,)
+			).fetchone()
+			if row is None:
+				return None
+			did = row[0]
+			with self.con:
+				self.con.execute(
+					"INSERT INTO handle_cache (handle, did, created_at, expires_at) VALUES (?, ?, ?, ?)",
+					(handle, did, util.time_now(), util.time_now() + static_config.HANDLE_CACHE_TTL),
+				)
+			return did
 		return row[0]
 
 	def handle_by_did(self, did: str) -> Optional[str]:
 		row = self.con.execute(
-			"SELECT handle FROM user WHERE did=?", (did,)
+			"SELECT handle FROM handle_cache WHERE did=?", (did,)
 		).fetchone()
 		if row is None:
-			return None
+			row = self.con.execute(
+				"SELECT handle FROM user WHERE did=?", (did,)
+			).fetchone()
+			if row is None:
+				return None
+			handle = row[0]
+			with self.con:
+				self.con.execute(
+					"INSERT INTO handle_cache (handle, did, created_at, expires_at) VALUES (?, ?, ?, ?)",
+					(handle, did, util.time_now(), util.time_now() + static_config.HANDLE_CACHE_TTL),
+				)
+			return handle
 		return row[0]
 
 	def signing_key_pem_by_did(self, did: str) -> Optional[str]:
@@ -395,8 +417,7 @@ class Database:
 		return row[0]
 
 	def list_repos(
-		self,
-	) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
+		) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
 		return [
 			(did, cbrrr.CID(head), rev)
 			for did, head, rev in self.con.execute(
