@@ -19,6 +19,13 @@ routes = web.RouteTableDef()
 BLOCK_SIZE = 0x10000  # 64k for now, might tweak this upwards, for perf?
 
 async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
+    """
+    Broadcasts a message to the firehose queues.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+        msg (Tuple[int, bytes]): A tuple containing the sequence number and the message bytes.
+    """
     async with get_firehose_queues_lock(request):
         queues_to_remove = set()
         active_queues = get_firehose_queues(request)
@@ -182,7 +189,7 @@ async def repo_get_record(request: web.Request):
         (did_or_handle, did_or_handle, collection, rkey),
     ).fetchone()
     if row is None:
-        raise web.HTTPNotFound(text="record not found")
+        return await service_proxy(request)  # forward to appview
     cid_out, value = row
     cid_out = cbrrr.CID(cid_out)
     if cid_in is not None:
@@ -247,4 +254,41 @@ async def repo_upload_blob(request: web.Request):
                 "size": length_read,
             }
         }
+    )
+
+@routes.get("/xrpc/com.atproto.repo.listRecords")
+async def repo_list_records(request: web.Request):
+    if "repo" not in request.query:
+        raise web.HTTPBadRequest(text="missing repo")
+    if "collection" not in request.query:
+        raise web.HTTPBadRequest(text="missing collection")
+    limit = int(request.query.get("limit", 50))
+    if limit < 1 or limit > 100:
+        raise web.HTTPBadRequest(text="limit out of range")
+    reverse = request.query.get("reverse") == "true"
+    cursor = request.query.get("cursor", "" if reverse else "\xff")
+    did_or_handle = request.query["repo"]
+    collection = request.query["collection"]
+    records = []
+    db = get_db(request)
+    for rkey, cid, value in db.con.execute(
+        f"""
+            SELECT rkey, cid, value
+            FROM record
+            WHERE repo=(SELECT id FROM user WHERE did=? OR handle=?)
+                AND nsid=? AND rkey{">" if reverse else "<"}?
+            ORDER BY rkey {"ASC" if reverse else "DESC"}
+            LIMIT ?
+        """,
+        (did_or_handle, did_or_handle, collection, cursor, limit),
+    ):
+        records.append(
+            {
+                "uri": f"at://{did_or_handle}/{collection}/{rkey}",
+                "cid": cid.encode(),
+                "value": cbrrr.decode_dag_cbor(value, atjson_mode=True),
+            }
+        )
+    return web.json_response(
+        {"records": records} | ({"cursor": rkey} if len(records) == limit else {})
     )
