@@ -388,3 +388,14 @@ async def test_serviceauth(s, pds_host, auth_headers):
         assert r.status == 200
         response = await r.json()
         assert "token" in response
+
+# Added initialize_database method to Database class
+class Database:
+    def __init__(self, path):
+        self.con = sqlite3.connect(path)
+
+    def initialize_database(self):
+        self.con.execute("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)")
+        # Add any other necessary table creation or initial data insertion here
+
+    # Rest of the Database class methods...
