@@ -3,7 +3,7 @@ from aiohttp import TCPConnector, ClientSession
 import aiohttp.connector
 from aiohttp.resolver import DefaultResolver, AbstractResolver
 
-# Monkeypatch to force all hosts to go through the resolver.
+# XXX: Monkeypatch to force all hosts to go through the resolver.
 # This is a temporary solution to ensure that bare IPs in the URL are not bypassed,
 # where our SSRF check is.
 aiohttp.connector.is_ip_address = lambda _: False
