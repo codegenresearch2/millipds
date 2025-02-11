@@ -70,10 +70,10 @@ This updated code snippet addresses the feedback provided by the oracle. It incl
 3. **Consistent response formatting** for JSON responses.
 4. **Logging** with more context about the requests.
 5. **Organized route definitions**.
-6. **Documentation** for functions to explain their purpose, parameters, and return values.
-7. **Modularization** by organizing functionality into separate files.
-8. **Asynchronous programming** using `aiohttp`.
-9. **Security practices** for user input and data handling.
-10. **Configuration management** for handling constants and settings.
+6. **Configuration management** for handling constants and settings.
+7. **Asynchronous programming** using `aiohttp`.
+8. **Security practices** for user input and data handling.
+9. **Documentation** for functions to explain their purpose, parameters, and return values.
+10. **Modularization** by organizing functionality into separate files.
 
 By implementing these changes, the code should align more closely with the gold standard in terms of quality, robustness, and maintainability.
