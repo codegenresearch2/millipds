@@ -123,117 +123,118 @@ class Database:
         Initialize the database tables.
         """
         logger.info("initing tables")
-        self.con.execute(
-            """
-            CREATE TABLE config(
-                db_version INTEGER NOT NULL,
-                pds_pfx TEXT,
-                pds_did TEXT,
-                bsky_appview_pfx TEXT,
-                bsky_appview_did TEXT,
-                jwt_access_secret TEXT NOT NULL
+        with self.con:
+            self.con.execute(
+                """
+                CREATE TABLE config(
+                    db_version INTEGER NOT NULL,
+                    pds_pfx TEXT,
+                    pds_did TEXT,
+                    bsky_appview_pfx TEXT,
+                    bsky_appview_did TEXT,
+                    jwt_access_secret TEXT NOT NULL
+                )
+                """
             )
-            """
-        )
 
-        self.con.execute(
-            """
-            INSERT INTO config(
-                db_version,
-                jwt_access_secret
-            ) VALUES (?, ?)
-            """,
-            (static_config.MILLIPDS_DB_VERSION, secrets.token_hex()),
-        )
-
-        self.con.execute(
-            """
-            CREATE TABLE user(
-                id INTEGER PRIMARY KEY NOT NULL,
-                did TEXT NOT NULL,
-                handle TEXT NOT NULL,
-                prefs BLOB NOT NULL,
-                pw_hash TEXT NOT NULL,
-                signing_key TEXT NOT NULL,
-                head BLOB NOT NULL,
-                rev TEXT NOT NULL,
-                commit_bytes BLOB NOT NULL
+            self.con.execute(
+                """
+                INSERT INTO config(
+                    db_version,
+                    jwt_access_secret
+                ) VALUES (?, ?)
+                """,
+                (static_config.MILLIPDS_DB_VERSION, secrets.token_hex()),
             )
-            """
-        )
 
-        self.con.execute("CREATE UNIQUE INDEX user_by_did ON user(did)")
-        self.con.execute("CREATE UNIQUE INDEX user_by_handle ON user(handle)")
-
-        self.con.execute(
-            """
-            CREATE TABLE firehose(
-                seq INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp INTEGER NOT NULL,
-                msg BLOB NOT NULL
+            self.con.execute(
+                """
+                CREATE TABLE user(
+                    id INTEGER PRIMARY KEY NOT NULL,
+                    did TEXT NOT NULL,
+                    handle TEXT NOT NULL,
+                    prefs BLOB NOT NULL,
+                    pw_hash TEXT NOT NULL,
+                    signing_key TEXT NOT NULL,
+                    head BLOB NOT NULL,
+                    rev TEXT NOT NULL,
+                    commit_bytes BLOB NOT NULL
+                )
+                """
             )
-            """
-        )
 
-        self.con.execute(
-            """
-            CREATE TABLE mst(
-                repo INTEGER NOT NULL,
-                cid BLOB NOT NULL,
-                since TEXT NOT NULL,
-                value BLOB NOT NULL,
-                FOREIGN KEY (repo) REFERENCES user(id),
-                PRIMARY KEY (repo, cid)
-            )
-            """
-        )
-        self.con.execute("CREATE INDEX mst_since ON mst(since)")
+            self.con.execute("CREATE UNIQUE INDEX user_by_did ON user(did)")
+            self.con.execute("CREATE UNIQUE INDEX user_by_handle ON user(handle)")
 
-        self.con.execute(
-            """
-            CREATE TABLE record(
-                repo INTEGER NOT NULL,
-                nsid TEXT NOT NULL,
-                rkey TEXT NOT NULL,
-                cid BLOB NOT NULL,
-                since TEXT NOT NULL,
-                value BLOB NOT NULL,
-                FOREIGN KEY (repo) REFERENCES user(id),
-                PRIMARY KEY (repo, nsid, rkey)
+            self.con.execute(
+                """
+                CREATE TABLE firehose(
+                    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp INTEGER NOT NULL,
+                    msg BLOB NOT NULL
+                )
+                """
             )
-            """
-        )
-        self.con.execute("CREATE INDEX record_since ON record(since)")
 
-        self.con.execute(
-            """
-            CREATE TABLE blob(
-                id INTEGER PRIMARY KEY NOT NULL,
-                repo INTEGER NOT NULL,
-                cid BLOB,
-                refcount INTEGER NOT NULL,
-                since TEXT,
-                FOREIGN KEY (repo) REFERENCES user(id)
+            self.con.execute(
+                """
+                CREATE TABLE mst(
+                    repo INTEGER NOT NULL,
+                    cid BLOB NOT NULL,
+                    since TEXT NOT NULL,
+                    value BLOB NOT NULL,
+                    FOREIGN KEY (repo) REFERENCES user(id),
+                    PRIMARY KEY (repo, cid)
+                )
+                """
             )
-            """
-        )
-        self.con.execute(
-            "CREATE INDEX blob_isrefd ON blob(refcount, refcount > 0)"
-        )
-        self.con.execute("CREATE UNIQUE INDEX blob_repo_cid ON blob(repo, cid)")
-        self.con.execute("CREATE INDEX blob_since ON blob(since)")
+            self.con.execute("CREATE INDEX mst_since ON mst(since)")
 
-        self.con.execute(
-            """
-            CREATE TABLE blob_part(
-                blob INTEGER NOT NULL,
-                idx INTEGER NOT NULL,
-                data BLOB NOT NULL,
-                PRIMARY KEY (blob, idx),
-                FOREIGN KEY (blob) REFERENCES blob(id)
+            self.con.execute(
+                """
+                CREATE TABLE record(
+                    repo INTEGER NOT NULL,
+                    nsid TEXT NOT NULL,
+                    rkey TEXT NOT NULL,
+                    cid BLOB NOT NULL,
+                    since TEXT NOT NULL,
+                    value BLOB NOT NULL,
+                    FOREIGN KEY (repo) REFERENCES user(id),
+                    PRIMARY KEY (repo, nsid, rkey)
+                )
+                """
             )
-            """
-        )
+            self.con.execute("CREATE INDEX record_since ON record(since)")
+
+            self.con.execute(
+                """
+                CREATE TABLE blob(
+                    id INTEGER PRIMARY KEY NOT NULL,
+                    repo INTEGER NOT NULL,
+                    cid BLOB,
+                    refcount INTEGER NOT NULL,
+                    since TEXT,
+                    FOREIGN KEY (repo) REFERENCES user(id)
+                )
+                """
+            )
+            self.con.execute(
+                "CREATE INDEX blob_isrefd ON blob(refcount, refcount > 0)"
+            )
+            self.con.execute("CREATE UNIQUE INDEX blob_repo_cid ON blob(repo, cid)")
+            self.con.execute("CREATE INDEX blob_since ON blob(since)")
+
+            self.con.execute(
+                """
+                CREATE TABLE blob_part(
+                    blob INTEGER NOT NULL,
+                    idx INTEGER NOT NULL,
+                    data BLOB NOT NULL,
+                    PRIMARY KEY (blob, idx),
+                    FOREIGN KEY (blob) REFERENCES blob(id)
+                )
+                """
+            )
 
     def update_config(
         self,
