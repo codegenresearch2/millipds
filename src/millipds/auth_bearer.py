@@ -102,10 +102,10 @@ def authenticated(handler):
         if payload.get("scope") != "com.atproto.access":
             raise web.HTTPUnauthorized(text="Invalid token scope")
 
-        subject: str = payload.get("sub", "")
-        if not subject.startswith("did:"):
+        did = payload.get("sub", "")
+        if not did.startswith("did:"):
             raise web.HTTPUnauthorized(text="Invalid token: invalid subject")
-        request["authed_did"] = subject
+        request["authed_did"] = did
         return await handler(request, *args, **kwargs)
 
     return authentication_handler
