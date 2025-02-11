@@ -72,6 +72,8 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
             return web.Response(
                 body=body_bytes, content_type=r.content_type, status=r.status
             )  # XXX: allowlist safe content types!
+    elif request.method == "PUT":
+        raise NotImplementedError("PUT method not implemented")
     else:
         raise NotImplementedError(f"Method {request.method} not implemented")
 
