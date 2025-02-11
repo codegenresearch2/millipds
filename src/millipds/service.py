@@ -1,4 +1,4 @@
-from typing import Optional
+import importlib.metadata
 import logging
 import asyncio
 import os
