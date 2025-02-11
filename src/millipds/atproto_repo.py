@@ -19,13 +19,6 @@ routes = web.RouteTableDef()
 BLOCK_SIZE = 0x10000  # 64k for now, might tweak this upwards, for perf?
 
 async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
-    """
-    Broadcasts a message to the firehose queues.
-    
-    Args:
-        request (web.Request): The HTTP request object.
-        msg (Tuple[int, bytes]): A tuple containing the sequence number and the message bytes.
-    """
     async with get_firehose_queues_lock(request):
         queues_to_remove = set()
         active_queues = get_firehose_queues(request)
@@ -63,7 +56,7 @@ async def repo_apply_writes(request: web.Request):
 @routes.post("/xrpc/com.atproto.repo.createRecord")
 @authenticated
 async def repo_create_record(request: web.Request):
-    orig: Dict = await request.json()
+    orig: dict = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
         {
@@ -93,7 +86,7 @@ async def repo_create_record(request: web.Request):
 @routes.post("/xrpc/com.atproto.repo.putRecord")
 @authenticated
 async def repo_put_record(request: web.Request):
-    orig: Dict = await request.json()
+    orig: dict = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
         {
@@ -124,7 +117,7 @@ async def repo_put_record(request: web.Request):
 @routes.post("/xrpc/com.atproto.repo.deleteRecord")
 @authenticated
 async def repo_delete_record(request: web.Request):
-    orig: Dict = await request.json()
+    orig: dict = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
         {
@@ -189,8 +182,7 @@ async def repo_get_record(request: web.Request):
         (did_or_handle, did_or_handle, collection, rkey),
     ).fetchone()
     if row is None:
-        return await service_proxy(request)  # forward to appview
-        # raise web.HTTPNotFound(text="record not found")
+        raise web.HTTPNotFound(text="record not found")
     cid_out, value = row
     cid_out = cbrrr.CID(cid_out)
     if cid_in is not None:
