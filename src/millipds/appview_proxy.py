@@ -12,7 +12,8 @@ from .did import DIDResolver
 
 logger = logging.getLogger(__name__)
 
-# Initialize DIDResolver with the necessary client
+# Ensure client is defined before initializing DIDResolver
+client = get_client(request)  # Assuming get_client is a function that returns an aiohttp client session
 did_resolver = DIDResolver(client, static_config.PLC_DIRECTORY_HOST)
 
 @authenticated
