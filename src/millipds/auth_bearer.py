@@ -4,7 +4,6 @@ import jwt
 from aiohttp import web
 
 from .app_util import *
-from . import crypto  # Assuming the crypto module is available
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +16,6 @@ def authenticated(handler):
     This decorator supports both symmetric and asymmetric tokens.
     It extracts the token from the Authorization header, validates it,
     and sets the authenticated DID in the request object.
-
-    Args:
-        handler (callable): The route handler function.
-
-    Returns:
-        callable: The decorated route handler function.
     """
     async def authentication_handler(request: web.Request, *args, **kwargs):
         # Extract the auth token
@@ -34,12 +27,16 @@ def authenticated(handler):
         token = auth.removeprefix("Bearer ")
 
         # Decode the token without verifying the signature
-        unverified_payload = jwt.api_jwt.decode_complete(token, options={"verify_signature": False})
-        alg = unverified_payload["header"].get("alg")
+        unverified_payload = jwt.decode(token, options={"verify_signature": False})
+        alg = unverified_payload["header"]["alg"]
 
         # Validate the token
         db = get_db(request)
         try:
+            # Check if the required configuration values are present
+            if not all(key in db.config for key in ["jwt_access_secret", "pds_did"]):
+                raise web.HTTPInternalServerError(text="Database configuration error")
+
             if alg == "HS256":
                 # Symmetric token
                 payload: dict = jwt.decode(
