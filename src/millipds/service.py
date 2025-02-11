@@ -9,12 +9,17 @@ app = web.Application(middlewares=[cors_middleware(allow_all=True)])
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Define routes using web.RouteTableDef
+routes = web.RouteTableDef()
+
 # Define a route for the root endpoint
+@routes.get('/v1/example')
 async def handle_root(request):
     response_data = {"message": "Hello, world!"}
     return web.json_response(response_data)
 
 # Define a route for another endpoint
+@routes.post('/v1/another_example')
 async def handle_another_example(request):
     data = await request.json()
     
@@ -25,8 +30,7 @@ async def handle_another_example(request):
     return web.json_response(response_data)
 
 # Add routes to the application
-app.router.add_get('/v1/example', handle_root)
-app.router.add_post('/v1/another_example', handle_another_example)
+app.router.add_routes(routes)
 
 # Middleware to log request information
 @app.middleware
