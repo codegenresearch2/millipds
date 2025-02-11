@@ -26,18 +26,22 @@ async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
         request (web.Request): The HTTP request object.
         msg (Tuple[int, bytes]): A tuple containing the sequence number and the message bytes.
     """
-    active_queues = get_firehose_queues(request)
-    for queue in active_queues:
-        try:
-            queue.put_nowait(msg)
-        except asyncio.QueueFull:
-            while not queue.empty():  # flush what's left of the queue
-                queue.get_nowait()
-            queue.put_nowait(None)  # signal end-of-stream
+    async with get_firehose_queues_lock(request):
+        queues_to_remove = set()
+        active_queues = get_firehose_queues(request)
+        for queue in active_queues:
+            try:
+                queue.put_nowait(msg)
+            except asyncio.QueueFull:
+                while not queue.empty():  # flush what's left of the queue
+                    queue.get_nowait()
+                queue.put_nowait(None)  # signal end-of-stream
+                queues_to_remove.add(queue)
+        active_queues -= queues_to_remove
 
 async def apply_writes_and_emit_firehose(
     request: web.Request, req_json: dict
-) -> dict:
+) -> Dict:
     if req_json["repo"] != request["authed_did"]:
         raise web.HTTPUnauthorized(text="not authed for that repo")
     try:
