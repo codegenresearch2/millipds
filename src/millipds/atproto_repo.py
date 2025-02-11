@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 import logging
 import hashlib
 import cbrrr
@@ -75,7 +75,7 @@ async def repo_apply_writes(request: web.Request):
 @authenticated
 async def repo_create_record(request: web.Request):
     try:
-        orig: dict = await request.json()
+        orig = await request.json()
         res = await apply_writes_and_emit_firehose(
             request,
             {
@@ -109,7 +109,7 @@ async def repo_create_record(request: web.Request):
 @authenticated
 async def repo_put_record(request: web.Request):
     try:
-        orig: dict = await request.json()
+        orig = await request.json()
         res = await apply_writes_and_emit_firehose(
             request,
             {
@@ -144,7 +144,7 @@ async def repo_put_record(request: web.Request):
 @authenticated
 async def repo_delete_record(request: web.Request):
     try:
-        orig: dict = await request.json()
+        orig = await request.json()
         res = await apply_writes_and_emit_firehose(
             request,
             {
