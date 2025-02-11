@@ -71,7 +71,61 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
 			return web.Response(
 				body=body_bytes, content_type=r.content_type, status=r.status
 			)  # XXX: allowlist safe content types!
-	elif request.method == "PUT":  # are xrpc requests ever PUT?
+	elif request.method == "PUT":
 		raise NotImplementedError("TODO: PUT")
 	else:
 		raise NotImplementedError("TODO")
+
+# Initialize user preferences during account creation
+def initialize_user_preferences(db, did):
+    preferences = {"preferences": []}
+    prefs_bytes = json.dumps(preferences, ensure_ascii=False, separators=(',', ':')).encode()
+    db.con.execute("INSERT INTO user_preferences (did, preferences) VALUES (?, ?)", (did, prefs_bytes))
+
+@routes.post("/xrpc/app.bsky.actor.createAccount")
+@authenticated
+async def actor_create_account(request: web.Request):
+    req_json = await request.json()
+    did = req_json.get("did")
+    password = req_json.get("password")
+    handle = req_json.get("handle")
+    
+    if not (did and password and handle):
+        raise web.HTTPBadRequest(text="missing or invalid parameters")
+    
+    db = get_db(request)
+    try:
+        db.create_account(did, handle, password)
+        initialize_user_preferences(db, did)
+    except Exception as e:
+        raise web.HTTPInternalServerError(text=str(e))
+    
+    return web.Response()
+
+@routes.put("/xrpc/app.bsky.actor.updatePreferences")
+@authenticated
+async def actor_update_preferences(request: web.Request):
+    req_json = await request.json()
+    preferences = req_json.get("preferences")
+    
+    if preferences is None:
+        raise web.HTTPBadRequest(text="missing or invalid preferences")
+    
+    prefs_bytes = json.dumps(preferences, ensure_ascii=False, separators=(',', ':')).encode()
+    db = get_db(request)
+    db.con.execute("UPDATE user_preferences SET preferences=? WHERE did=?", (prefs_bytes, request["authed_did"]))
+    
+    return web.Response()
+
+@routes.get("/xrpc/app.bsky.actor.getPreferences")
+@authenticated
+async def actor_get_preferences(request: web.Request):
+    db = get_db(request)
+    row = db.con.execute("SELECT preferences FROM user_preferences WHERE did=?", (request["authed_did"],)).fetchone()
+    
+    if row is None:
+        raise web.HTTPNotFound(text="preferences not found")
+    
+    prefs = json.loads(row[0])
+    
+    return web.json_response(prefs)
