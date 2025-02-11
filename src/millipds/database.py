@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 apsw.bestpractice.apply(apsw.bestpractice.recommended)
 
 class DBBlockStore(BlockStore):
+    """
+    Adapt the db for consumption by the atmst library
+    """
     def __init__(self, db: apsw.Connection, repo: str) -> None:
         self.db = db
         self.user_id = self.db.execute(
@@ -42,6 +45,9 @@ class DBBlockStore(BlockStore):
         raise NotImplementedError("TODO?")
 
 class Database:
+    """
+    Database class for managing the application's data
+    """
     def __init__(self, path: str = static_config.MAIN_DB_PATH) -> None:
         logger.info(f"opening database at {path}")
         self.path = path
@@ -280,7 +286,7 @@ class Database:
                 (
                     did,
                     handle,
-                    json.dumps({}),  # Initialize user preferences as an empty JSON object
+                    json.dumps({"theme": "light", "language": "en"}),  # Initialize user preferences with a structured JSON object
                     pw_hash,
                     privkey_pem,
                     bytes(commit_cid),
