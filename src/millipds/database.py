@@ -47,9 +47,11 @@ class DBBlockStore(BlockStore):
         return row[0]
 
     def del_block(self, key: bytes) -> None:
+        # TODO: Implement this method
         raise NotImplementedError("TODO: Implement this method")
 
     def put_block(self, key: bytes, value: bytes) -> None:
+        # TODO: Implement this method
         raise NotImplementedError("TODO: Implement this method")
 
 class Database:
