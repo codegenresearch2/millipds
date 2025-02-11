@@ -62,12 +62,13 @@ async def repo_create_record(request: web.Request):
     res = await apply_writes_and_emit_firehose(
         request,
         {
+            "$type": "com.atproto.repo.applyWrites#create",
             "repo": orig["repo"],
             "validate": orig.get("validate"),
             "swapCommit": orig.get("swapCommit"),
             "writes": [
                 {
-                    "type": "com.atproto.repo.applyWrites#create",
+                    "$type": "com.atproto.repo.applyWrites#create",
                     "collection": orig["collection"],
                     "rkey": orig.get("rkey"),
                     "validate": orig.get("validate"),
@@ -93,12 +94,13 @@ async def repo_put_record(request: web.Request):
     res = await apply_writes_and_emit_firehose(
         request,
         {
+            "$type": "com.atproto.repo.applyWrites#update",
             "repo": orig["repo"],
             "validate": orig.get("validate"),
             "swapCommit": orig.get("swapCommit"),
             "writes": [
                 {
-                    "type": "com.atproto.repo.applyWrites#update",
+                    "$type": "com.atproto.repo.applyWrites#update",
                     "collection": orig["collection"],
                     "rkey": orig["rkey"],
                     "validate": orig.get("validate"),
@@ -125,12 +127,13 @@ async def repo_delete_record(request: web.Request):
     res = await apply_writes_and_emit_firehose(
         request,
         {
+            "$type": "com.atproto.repo.applyWrites#delete",
             "repo": orig["repo"],
             "validate": orig.get("validate"),
             "swapCommit": orig.get("swapCommit"),
             "writes": [
                 {
-                    "type": "com.atproto.repo.applyWrites#delete",
+                    "$type": "com.atproto.repo.applyWrites#delete",
                     "collection": orig["collection"],
                     "rkey": orig["rkey"],
                     "validate": orig.get("validate"),
