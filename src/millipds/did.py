@@ -50,12 +50,10 @@ class DIDResolver:
 	async def resolve_with_db_cache(
 		self, db: Database, did: str
 	) -> Optional[DIDDoc]:
-		# TODO: prevent concurrent queries for the same DID - use locks?
-
 		# try the db first
 		now = int(time.time())
 		row = db.con.execute(
-			"SELECT doc FROM did_cache WHERE did=? AND expires_at<?", (did, now)
+			"SELECT doc FROM did_cache WHERE did=? AND expires_at>?", (did, now)
 		).fetchone()
 
 		# cache hit
@@ -71,28 +69,23 @@ class DIDResolver:
 		)
 		try:
 			doc = await self.resolve_uncached(did)
-			# Logging on success
 			logger.info(f"DID {did} resolved successfully.")
 		except Exception as e:
 			logger.exception(f"Error resolving DID {did}: {e}")
 			doc = None
 
-		# update "now" because resolution might've taken a while
-		now = int(time.time())
-		expires_at = now + (
+		# update the cache
+		expires_at = int(time.time()) + (
 			static_config.DID_CACHE_ERROR_TTL
 			if doc is None
 			else static_config.DID_CACHE_TTL
 		)
-
-		# update the cache (note: we cache failures too, but with a shorter TTL)
-		# TODO: if current doc is None, only replace if the existing entry is also None
 		db.con.execute(
 			"INSERT OR REPLACE INTO did_cache (did, doc, created_at, expires_at) VALUES (?, ?, ?, ?)",
 			(
 				did,
 				None if doc is None else util.compact_json(doc),
-				now,
+				int(time.time()),
 				expires_at,
 			),
 		)
@@ -138,3 +131,16 @@ class DIDResolver:
 		return await self._get_json_with_limit(
 			f"{self.plc_directory_host}/{did}", self.DIDDOC_LENGTH_LIMIT
 		)
+
+
+async def main() -> None:
+	async with aiohttp.ClientSession() as session:
+		resolver = DIDResolver(session)
+		print(await resolver.resolve_uncached("did:web:retr0.id"))
+		print(
+			await resolver.resolve_uncached("did:plc:vwzwgnygau7ed7b7wt5ux7y2")
+		)
+
+
+if __name__ == "__main__":
+	asyncio.run(main())
