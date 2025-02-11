@@ -15,11 +15,14 @@ class SSRFSafeResolverWrapper(AbstractResolver):
         self.resolver = resolver
 
     async def resolve(self, host: str, port: int, family: int):
-        result = await self.resolver.resolve(host, port, family)
-        for host in result:
-            if ipaddress.ip_address(host["host"]).is_private:
-                raise SSRFException("Can't connect to private IP: " + host["host"])
-        return result
+        try:
+            result = await self.resolver.resolve(host, port, family)
+            for host in result:
+                if ipaddress.ip_address(host["host"]).is_private:
+                    raise SSRFException(f"Can't connect to private IP: {host['host']}")
+            return result
+        except Exception as e:
+            raise SSRFException(f"Error resolving host: {e}")
     
     async def close(self) -> None:
         await self.resolver.close()
