@@ -29,8 +29,10 @@ async def sync_get_blob(request: web.Request):
         raise web.HTTPBadRequest(text="invalid cid")
 
     with db.new_con(readonly=True) as con:
-        blob_id_query = "SELECT id FROM blob WHERE repo=? AND cid=?"
-        blob_row = con.execute(blob_id_query, (db.repo, bytes(cid))).fetchone()
+        blob_row = con.execute(
+            "SELECT id FROM blob WHERE repo=? AND cid=?",
+            (db.repo, bytes(cid))
+        ).fetchone()
         if blob_row is None:
             raise web.HTTPNotFound(text="blob not found")
 
