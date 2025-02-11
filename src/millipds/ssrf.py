@@ -3,10 +3,9 @@ from aiohttp import TCPConnector, ClientSession
 import aiohttp.connector
 from aiohttp.resolver import DefaultResolver, AbstractResolver
 
-# XXX: Monkeypatch to force all hosts to go through the resolver
+# XXX: Monkeypatch to force all hosts to go through the resolver.
 # This is a temporary solution to ensure that bare IPs in the URL are not bypassed,
-# where our SSRF check is. See https://github.com/aio-libs/aiohttp/discussions/10224
-# for more context.
+# where our SSRF check is.
 aiohttp.connector.is_ip_address = lambda _: False
 
 class SSRFException(ValueError):
@@ -18,9 +17,9 @@ class SSRFSafeResolverWrapper(AbstractResolver):
 
     async def resolve(self, host: str, port: int, family: int):
         result = await self.resolver.resolve(host, port, family)
-        for host_info in result:
-            if ipaddress.ip_address(host_info["host"]).is_private:
-                raise SSRFException(f"Can't connect to private IP: {host_info['host']}")
+        for host in result:
+            if ipaddress.ip_address(host["host"]).is_private:
+                raise SSRFException(f"Can't connect to private IP: {host['host']}")
         return result
 
     async def close(self) -> None:
@@ -48,6 +47,15 @@ class Database:
         self.con.execute("CREATE TABLE IF NOT EXISTS handle_cache (id INTEGER PRIMARY KEY, handle TEXT, repo_id INTEGER)")
 
     def hash_password(self, password: str) -> str:
+        """
+        Hashes the given password using a secure hashing algorithm.
+
+        Args:
+            password (str): The password to hash.
+
+        Returns:
+            str: The hashed password.
+        """
         # Implement password hashing logic here
         pass
 
