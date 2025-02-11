@@ -1,15 +1,11 @@
-import importlib.metadata
+from typing import Optional, Set, Tuple
 import logging
 import asyncio
-import time
 import os
-import io
 import json
-import hashlib
 
 import apsw
 import aiohttp
-from aiohttp_middlewares import cors_middleware
 from aiohttp import web
 import jwt
 
