@@ -1,5 +1,3 @@
-# This is a corrected version of the code snippet provided earlier.
-
 import logging
 from flask import Flask, request, jsonify
 from did_resolver import DIDResolver
