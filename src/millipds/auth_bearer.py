@@ -4,6 +4,7 @@ import jwt
 from aiohttp import web
 
 from .app_util import *
+from . import crypto  # Assuming the crypto module is available
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,13 @@ def authenticated(handler):
         token = auth.removeprefix("Bearer ")
 
         # Decode the token without verifying the signature
-        unverified_payload = jwt.decode(token, options={"verify_signature": False})
-        alg = unverified_payload["header"]["alg"]
+        unverified_payload = jwt.api_jwt.decode_complete(token, options={"verify_signature": False})
+
+        # Check if the 'header' key exists in the payload
+        if 'header' not in unverified_payload:
+            raise web.HTTPUnauthorized(text="Invalid token: missing header")
+
+        alg = unverified_payload["header"].get("alg")
 
         # Validate the token
         db = get_db(request)
