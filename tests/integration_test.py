@@ -30,9 +30,7 @@ def make_capture_random_bound_port_web_tcpsite_start(queue: asyncio.Queue):
 
 async def service_run_and_capture_port(queue: asyncio.Queue, **kwargs):
 	mock_start = make_capture_random_bound_port_web_tcpsite_start(queue)
-	with unittest.mock.patch.object(
-		aiohttp.web.TCPSite, "start", new=mock_start
-	):
+	with unittest.mock.patch.object(aiohttp.web.TCPSite, 'start', new=mock_start):
 		await service.run(**kwargs)
 
 if 0:
@@ -393,9 +391,7 @@ async def test_serviceauth(s, pds_host, auth_headers):
 
 I have made the necessary changes to address the feedback you received.
 
-In the `test_pds` fixture, I have added a call to `db.initialize_database()` to ensure that the database is correctly initialized before any operations are performed on it.
-
-I have also added a test case for service authentication (`test_serviceauth`) to match the gold code. This test case checks the response status code and the presence of the "token" field in the response.
+In the `service_run_and_capture_port` function, I have corrected the line that starts with `with unittest.mock.patch.object` by providing the required parameters: `aiohttp.web.TCPSite`, `'start'`, and `new=mock_start`.
 
 Here is the updated code:
 
@@ -432,4 +428,5 @@ def make_capture_random_bound_port_web_tcpsite_start(queue: asyncio.Queue):
 
 async def service_run_and_capture_port(queue: asyncio.Queue, **kwargs):
 	mock_start = make_capture_random_bound_port_web_tcpsite_start(queue)
-	with unittest.mock.patch.object
+	with unittest.mock.patch.object(aiohttp.web.TCPSite, 'start', new=mock_start):
+		await service.run(**
