@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
 ### Explanation of Changes:
 1. **Middleware Structure**: Enhanced the middleware to include security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Content-Security-Policy`).
-2. **Route Organization**: Used `web.RouteTableDef()` to organize routes more effectively.
+2. **Route Definitions**: Used `web.RouteTableDef()` to organize routes more effectively.
 3. **Error Handling**: Added comprehensive error handling for JSON parsing errors.
 4. **Response Formatting**: Ensured consistent JSON responses with appropriate HTTP status codes.
 5. **Logging**: Added logging to track request methods and URLs.
