@@ -26,14 +26,16 @@ async def sync_get_blob(request: web.Request):
     Returns:
         web.Response: The HTTP response containing the blob data.
     """
-    with get_db(request).new_con(readonly=True) as con:
-        blob_id = con.execute(
+    db = get_db(request)
+    async with db.new_con(readonly=True) as con:
+        blob_id = await con.execute(
             "SELECT blob.id FROM blob INNER JOIN user ON blob.repo=user.id WHERE did=? AND cid=? AND refcount>0",
             (
                 request.query["did"],
                 bytes(cbrrr.CID.decode(request.query["cid"])),
             ),
-        ).fetchone()
+        )
+        blob_id = blob_id.fetchone()
         if blob_id is None:
             raise web.HTTPNotFound(text="blob not found")
         res = web.StreamResponse(
@@ -43,8 +45,8 @@ async def sync_get_blob(request: web.Request):
         )
         res.content_type = "application/octet-stream"
         await res.prepare(request)
-        for blob_part, *_ in con.execute(
-            "SELECT data FROM blob_part WHERE blob=? ORDER BY idx",
+        async for blob_part in con.execute_fetchall(
+            "SELECT data FROM blob_part WHERE blob=?",
             (blob_id[0],),
         ):
             await res.write(blob_part)
@@ -73,7 +75,8 @@ async def sync_get_blocks(request: web.Request):
     except ValueError:
         raise web.HTTPBadRequest(text="invalid cid")
     db = get_db(request)
-    row = db.con.execute("SELECT id FROM user WHERE did=?", (did,)).fetchone()
+    row = await db.con.execute("SELECT id FROM user WHERE did=?", (did,))
+    row = row.fetchone()
     if row is None:
         raise web.HTTPNotFound(text="did not found")
     user_id = row[0]
@@ -82,14 +85,15 @@ async def sync_get_blocks(request: web.Request):
     await res.prepare(request)
     await res.write(util.serialize_car_header())
     for cid in cids:
-        row = db.con.execute(
+        row = await db.con.execute(
             """
                 SELECT commit_bytes FROM user WHERE head=? AND id=?
                 UNION SELECT value FROM mst WHERE cid=? AND repo=?
                 UNION SELECT value FROM record WHERE cid=? AND repo=?
             """,
             (cid, user_id) * 3,
-        ).fetchone()
+        )
+        row = row.fetchone()
         if row is None:
             continue
         await res.write(util.serialize_car_entry(cid, row[0]))
@@ -111,11 +115,8 @@ async def sync_get_latest_commit(request: web.Request):
     did = request.query.get("did")
     if did is None:
         raise web.HTTPBadRequest(text="no did specified")
-    row = (
-        get_db(request)
-        .con.execute("SELECT rev, head FROM user WHERE did=?", (did,))
-        .fetchone()
-    )
+    row = await (get_db(request).con.execute("SELECT rev, head FROM user WHERE did=?", (did,)))
+    row = row.fetchone()
     if row is None:
         raise web.HTTPNotFound(text="did not found")
     rev, head = row
@@ -140,7 +141,7 @@ async def sync_get_record(request: web.Request):
     if "rkey" not in request.query:
         raise web.HTTPBadRequest(text="missing rkey")
 
-    car = repo_ops.get_record(
+    car = await repo_ops.get_record(
         get_db(request),
         request.query["did"],
         request.query["collection"] + "/" + request.query["rkey"],
@@ -166,11 +167,8 @@ async def sync_get_repo_status(request: web.Request):
     did = request.query.get("did")
     if did is None:
         raise web.HTTPBadRequest(text="no did specified")
-    row = (
-        get_db(request)
-        .con.execute("SELECT rev FROM user WHERE did=?", (did,))
-        .fetchone()
-    )
+    row = await (get_db(request).con.execute("SELECT rev FROM user WHERE did=?", (did,)))
+    row = row.fetchone()
     if row is None:
         raise web.HTTPNotFound(text="did not found")
     return web.json_response({"did": did, "active": True, "rev": row[0]})
@@ -192,12 +190,13 @@ async def sync_get_repo(request: web.Request):
         raise web.HTTPBadRequest(text="no did specified")
     since = request.query.get("since", "")
 
-    with get_db(request).new_con(readonly=True) as con:
+    async with get_db(request).new_con(readonly=True) as con:
         try:
-            user_id, head, commit_bytes = con.execute(
+            user_id, head, commit_bytes = await con.execute(
                 "SELECT id, head, commit_bytes FROM user WHERE did=?", (did,)
-            ).fetchone()
-        except TypeError:
+            )
+            user_id, head, commit_bytes = user_id.fetchone(), head.fetchone(), commit_bytes.fetchone()
+        except Exception:
             raise web.HTTPNotFound(text="repo not found")
 
         res = web.StreamResponse()
@@ -206,13 +205,13 @@ async def sync_get_repo(request: web.Request):
         await res.write(util.serialize_car_header(head))
         await res.write(util.serialize_car_entry(head, commit_bytes))
 
-        for mst_cid, mst_value in con.execute(
+        async for mst_cid, mst_value in con.execute_fetchall(
             "SELECT cid, value FROM mst WHERE repo=? AND since>?",
             (user_id, since),
         ):
             await res.write(util.serialize_car_entry(mst_cid, mst_value))
 
-        for record_cid, record_value in con.execute(
+        async for record_cid, record_value in con.execute_fetchall(
             "SELECT cid, value FROM record WHERE repo=? AND since>?",
             (user_id, since),
         ):
@@ -220,61 +219,3 @@ async def sync_get_repo(request: web.Request):
 
     await res.write_eof()
     return res
-
-
-@routes.get("/xrpc/com.atproto.sync.listBlobs")
-async def sync_list_blobs(request: web.Request):
-    """
-    List blobs in the repository.
-    
-    Args:
-        request (web.Request): The HTTP request object.
-    
-    Returns:
-        web.Response: The HTTP response containing the list of blobs.
-    """
-    did = request.query.get("did")
-    if did is None:
-        raise web.HTTPBadRequest(text="no did specified")
-    since = request.query.get("since", "")
-    limit = int(request.query.get("limit", 500))
-    if limit < 1 or limit > 1000:
-        raise web.HTTPBadRequest(text="limit out of range")
-    cursor = int(request.query.get("cursor", 0))
-
-    cids = []
-    for id_, cid in get_db(request).con.execute(
-        "SELECT blob.id, cid FROM blob INNER JOIN user ON blob.repo=user.id WHERE did=? AND refcount>0 AND since>? AND blob.id>? ORDER BY blob.id LIMIT ?",
-        (did, since, cursor, limit),
-    ):
-        cids.append(cbrrr.CID(cid).encode())
-
-    return web.json_response(
-        {"cids": cids} | ({"cursor": id_} if len(cids) == limit else {})
-    )
-
-
-@routes.get("/xrpc/com.atproto.sync.listRepos")
-async def sync_list_repos(request: web.Request):
-    """
-    List all repositories.
-    
-    Args:
-        request (web.Request): The HTTP request object.
-    
-    Returns:
-        web.Response: The HTTP response containing the list of repositories.
-    """
-    return web.json_response(
-        {
-            "repos": [
-                {
-                    "did": did,
-                    "head": head.encode("base32"),
-                    "rev": rev,
-                    "active": True,
-                }
-                for did, head, rev in get_db(request).list_repos()
-            ]
-        }
-    )
