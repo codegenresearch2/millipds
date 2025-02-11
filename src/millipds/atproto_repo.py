@@ -60,6 +60,7 @@ async def repo_create_record(request: web.Request):
         request,
         {
             "repo": orig["repo"],
+            "validate": orig.get("validate"),
             "writes": [
                 {
                     "$type": "com.atproto.repo.applyWrites#create",
@@ -87,6 +88,7 @@ async def repo_put_record(request: web.Request):
         request,
         {
             "repo": orig["repo"],
+            "validate": orig.get("validate"),
             "writes": [
                 {
                     "$type": "com.atproto.repo.applyWrites#update",
@@ -115,6 +117,7 @@ async def repo_delete_record(request: web.Request):
         request,
         {
             "repo": orig["repo"],
+            "validate": orig.get("validate"),
             "writes": [
                 {
                     "$type": "com.atproto.repo.applyWrites#delete",
