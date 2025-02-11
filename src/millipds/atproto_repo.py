@@ -18,6 +18,10 @@ routes = web.RouteTableDef()
 
 
 async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
+    """
+    Broadcasts a message to all active firehose queues.
+    Handles exceptions and ensures that the queue is not blocked by slow consumers.
+    """
     async with get_firehose_queues_lock(request):
         queues_to_remove = set()
         active_queues = get_firehose_queues(request)
@@ -33,6 +37,10 @@ async def firehose_broadcast(request: web.Request, msg: Tuple[int, bytes]):
 
 
 async def apply_writes_and_emit_firehose(request: web.Request, req_json: dict) -> dict:
+    """
+    Applies writes to the repository and emits the firehose message.
+    Validates the repository and raises an error if unauthorized.
+    """
     if req_json["repo"] != request["authed_did"]:
         raise web.HTTPUnauthorized(text="not authed for that repo")
     res, firehose_seq, firehose_bytes = repo_ops.apply_writes(
@@ -48,6 +56,9 @@ async def apply_writes_and_emit_firehose(request: web.Request, req_json: dict) -
 @routes.post("/xrpc/com.atproto.repo.applyWrites")
 @authenticated
 async def repo_apply_writes(request: web.Request):
+    """
+    Endpoint to apply writes to the repository and emit firehose messages.
+    """
     req_json = await request.json()
     return web.json_response(await apply_writes_and_emit_firehose(request, req_json))
 
@@ -55,6 +66,9 @@ async def repo_apply_writes(request: web.Request):
 @routes.post("/xrpc/com.atproto.repo.createRecord")
 @authenticated
 async def repo_create_record(request: web.Request):
+    """
+    Endpoint to create a new record in the repository.
+    """
     orig = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
@@ -83,6 +97,9 @@ async def repo_create_record(request: web.Request):
 @routes.post("/xrpc/com.atproto.repo.putRecord")
 @authenticated
 async def repo_put_record(request: web.Request):
+    """
+    Endpoint to update an existing record in the repository.
+    """
     orig = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
@@ -112,6 +129,9 @@ async def repo_put_record(request: web.Request):
 @routes.post("/xrpc/com.atproto.repo.deleteRecord")
 @authenticated
 async def repo_delete_record(request: web.Request):
+    """
+    Endpoint to delete a record from the repository.
+    """
     orig = await request.json()
     res = await apply_writes_and_emit_firehose(
         request,
@@ -132,6 +152,9 @@ async def repo_delete_record(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.repo.describeRepo")
 async def repo_describe_repo(request: web.Request):
+    """
+    Endpoint to describe a repository.
+    """
     if "repo" not in request.query:
         raise web.HTTPBadRequest(text="missing repo")
     did_or_handle = request.query["repo"]
@@ -152,6 +175,9 @@ async def repo_describe_repo(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.repo.getRecord")
 async def repo_get_record(request: web.Request):
+    """
+    Endpoint to get a specific record from the repository.
+    """
     if "repo" not in request.query:
         raise web.HTTPBadRequest(text="missing repo")
     if "collection" not in request.query:
@@ -185,6 +211,9 @@ async def repo_get_record(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.repo.listRecords")
 async def repo_list_records(request: web.Request):
+    """
+    Endpoint to list records from the repository.
+    """
     if "repo" not in request.query:
         raise web.HTTPBadRequest(text="missing repo")
     if "collection" not in request.query:
@@ -221,6 +250,9 @@ async def repo_list_records(request: web.Request):
 @routes.post("/xrpc/com.atproto.repo.uploadBlob")
 @authenticated
 async def repo_upload_blob(request: web.Request):
+    """
+    Endpoint to upload a blob to the repository.
+    """
     mime = request.headers.get("content-type", "application/octet-stream")
     BLOCK_SIZE = 0x10000
     db = get_db(request)
