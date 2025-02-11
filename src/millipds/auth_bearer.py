@@ -1,9 +1,8 @@
 import logging
-
 import jwt
 from aiohttp import web
-
 from .app_util import *
+from . import crypto  # Assuming the crypto module is available
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +26,13 @@ def authenticated(handler):
         token = auth.removeprefix("Bearer ")
 
         # Decode the token without verifying the signature
-        unverified_payload = jwt.decode(token, options={"verify_signature": False})
-        alg = unverified_payload["header"]["alg"]
+        unverified_payload = jwt.api_jwt.decode_complete(token, options={"verify_signature": False})
+
+        # Check if the 'header' key exists in the payload
+        if 'header' not in unverified_payload:
+            raise web.HTTPUnauthorized(text="Invalid token: missing header")
+
+        alg = unverified_payload["header"].get("alg")
 
         # Validate the token
         db = get_db(request)
@@ -36,7 +40,7 @@ def authenticated(handler):
             # Check if the database connection is established and the necessary tables exist
             db.con.execute("SELECT 1 FROM config LIMIT 1")
         except Exception as e:
-            raise web.HTTPUnauthorized(text="Authentication not possible due to a configuration issue")
+            raise web.HTTPUnauthorized(text="Authentication not possible due to a database configuration issue")
 
         try:
             # Check if the required configuration values are present
@@ -65,6 +69,8 @@ def authenticated(handler):
 
                 # Retrieve the signing key for the issuer
                 signing_key = db.signing_key_pem_by_did(iss)
+                if not signing_key:
+                    raise web.HTTPUnauthorized(text="Invalid token: signing key not found")
 
                 # Extract and validate the lxm from the request path
                 lxm = request.match_info.get("lxm")
@@ -74,7 +80,7 @@ def authenticated(handler):
                 payload: dict = jwt.decode(
                     jwt=token,
                     key=signing_key,
-                    algorithms=[alg],
+                    algorithms=[crypto.jwt_signature_alg_for_pem(signing_key)],
                     audience=db.config["pds_did"],
                     options={
                         "require": ["exp", "iat", "scope", "lxm"],
@@ -90,7 +96,7 @@ def authenticated(handler):
         except jwt.exceptions.ExpiredSignatureError:
             raise web.HTTPUnauthorized(text="Expired token")
         except jwt.exceptions.PyJWTError as e:
-            raise web.HTTPUnauthorized(text="Invalid token")
+            raise web.HTTPUnauthorized(text=f"Invalid token: {str(e)}")
 
         # If we reached this far, the payload must've been signed by us
         if payload.get("scope") != "com.atproto.access":
