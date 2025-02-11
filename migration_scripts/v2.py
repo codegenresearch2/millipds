@@ -1,3 +1,5 @@
+# TODO: some smarter way of handling migrations
+
 import apsw
 import apsw.bestpractice
 
@@ -36,5 +38,4 @@ with apsw.Connection(static_config.MAIN_DB_PATH) as con:
 
     con.execute("UPDATE config SET db_version=2")
 
-# TODO: some smarter way of handling migrations
 print("v1 -> v2 Migration successful")
