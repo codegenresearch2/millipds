@@ -4,7 +4,6 @@ import jwt
 from aiohttp import web
 
 from .app_util import *
-from . import crypto  # Assuming the crypto module is available
 
 logger = logging.getLogger(__name__)
 
@@ -28,20 +27,21 @@ def authenticated(handler):
         token = auth.removeprefix("Bearer ")
 
         # Decode the token without verifying the signature
-        unverified_payload = jwt.api_jwt.decode_complete(token, options={"verify_signature": False})
-
-        # Check if the 'header' key exists in the payload
-        if 'header' not in unverified_payload:
-            raise web.HTTPUnauthorized(text="Invalid token: missing header")
-
-        alg = unverified_payload["header"].get("alg")
+        unverified_payload = jwt.decode(token, options={"verify_signature": False})
+        alg = unverified_payload["header"]["alg"]
 
         # Validate the token
         db = get_db(request)
         try:
+            # Check if the database connection is established and the necessary tables exist
+            db.con.execute("SELECT 1 FROM config LIMIT 1")
+        except Exception as e:
+            raise web.HTTPUnauthorized(text="Authentication not possible due to a configuration issue")
+
+        try:
             # Check if the required configuration values are present
             if not all(key in db.config for key in ["jwt_access_secret", "pds_did"]):
-                raise web.HTTPInternalServerError(text="Database configuration error")
+                raise web.HTTPUnauthorized(text="Authentication not possible due to a configuration issue")
 
             if alg == "HS256":
                 # Symmetric token
@@ -90,7 +90,7 @@ def authenticated(handler):
         except jwt.exceptions.ExpiredSignatureError:
             raise web.HTTPUnauthorized(text="Expired token")
         except jwt.exceptions.PyJWTError as e:
-            raise web.HTTPUnauthorized(text=f"Invalid token: {str(e)}")
+            raise web.HTTPUnauthorized(text="Invalid token")
 
         # If we reached this far, the payload must've been signed by us
         if payload.get("scope") != "com.atproto.access":
