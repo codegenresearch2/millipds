@@ -29,11 +29,11 @@ async def service_proxy(request: web.Request, service: Optional[str] = None):
     
     if service:
         try:
-            resolved_service = await did_resolver.resolve(service)
-            service_did = resolved_service.did
+            service_did, fragment = service.split("#", 1)
+            resolved_service = await did_resolver.resolve(service_did + "#" + fragment)
             service_route = resolved_service.serviceEndpoint
         except Exception as e:
-            return web.HTTPInternalServerError(text=str(e))
+            return web.HTTPBadRequest(text=f"Unable to resolve service: {str(e)}")
     else:
         service_did = db.config["bsky_appview_did"]
         service_route = db.config["bsky_appview_pfx"]
