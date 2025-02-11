@@ -245,19 +245,6 @@ class Database:
 			"""
 		)
 
-		# this is only for the tokens *we* issue, dpop jti will be tracked separately
-		# there's no point remembering that an expired token was revoked, and we'll garbage-collect these periodically
-		self.con.execute(
-			"""
-			CREATE TABLE revoked_token(
-				did TEXT NOT NULL,
-				jti TEXT NOT NULL,
-				expires_at INTEGER NOT NULL,
-				PRIMARY KEY (did, jti)
-			) STRICT, WITHOUT ROWID
-			"""
-		)
-
 	def update_config(
 		self,
 		pds_pfx: Optional[str] = None,
@@ -411,8 +398,7 @@ class Database:
 		return row[0]
 
 	def list_repos(
-		self,
-	) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
+		) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
 		return [
 			(did, cbrrr.CID(head), rev)
 			for did, head, rev in self.con.execute(
