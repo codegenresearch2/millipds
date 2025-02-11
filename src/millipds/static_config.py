@@ -10,9 +10,9 @@ HTTP_LOG_FMT = (
 
 GROUPNAME = "millipds-sock"
 
-# this gets bumped if we make breaking changes to the db schema
-MILLIPDS_DB_VERSION = 2
-
+MILLIPDS_DB_VERSION = (
+	1  # this gets bumped if we make breaking changes to the db schema
+)
 ATPROTO_REPO_VERSION_3 = 3  # might get bumped if the atproto spec changes
 CAR_VERSION_1 = 1
 
@@ -28,4 +28,42 @@ FIREHOSE_QUEUE_SIZE = 100
 DID_CACHE_TTL = 60 * 60  # 1 hour
 DID_CACHE_ERROR_TTL = 60 * 5  # 5 mins
 
-PLC_DIRECTORY_HOST = "https://plc.directory"
+# New functionality
+from .did import DIDResolver
+
+MILLIPDS_DID_RESOLVER = web.AppKey("MILLIPDS_DID_RESOLVER", DIDResolver)
+
+# Updated __all__ to include new items
+__all__ = [
+	"MILLIPDS_DB",
+	"MILLIPDS_AIOHTTP_CLIENT",
+	"MILLIPDS_FIREHOSE_QUEUES",
+	"MILLIPDS_FIREHOSE_QUEUES_LOCK",
+	"MILLIPDS_DID_RESOLVER",
+	"get_db",
+	"get_client",
+	"get_firehose_queues",
+	"get_firehose_queues_lock",
+	"get_did_resolver",
+]
+
+# Maintaining consistent naming conventions for helpers
+def get_did_resolver(req: web.Request):
+	return req.app[MILLIPDS_DID_RESOLVER]
+
+# Including a DID resolver instance
+did_resolver = DIDResolver(get_client(request), static_config.PLC_DIRECTORY_HOST)
+app[MILLIPDS_DID_RESOLVER] = did_resolver
+
+# Maintaining existing middleware and routes
+cors = cors_middleware(
+	allow_all=True,
+	expose_headers=["*"],
+	allow_headers=["*"],
+	allow_methods=["*"],
+	allow_credentials=True,
+	max_age=100_000_000,
+)
+
+app.middlewares.append(cors)
+app.middlewares.append(atproto_service_proxy_middleware)
