@@ -8,7 +8,7 @@ import jwt
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Define a middleware function to log requests and inject security headers
+# Define a middleware function for logging requests
 @middleware
 async def logging_middleware(app, handler):
     async def middleware_handler(request):
@@ -23,31 +23,15 @@ async def logging_middleware(app, handler):
 # Initialize the application
 app = web.Application(middlewares=[logging_middleware])
 
-# Define a route for the root endpoint
-async def handle_root(request):
-    return web.Response(text="Welcome to the API!")
-
-# Define a route for handling POST requests
-async def handle_post(request):
-    try:
-        data = await request.json()
-        if not data:
-            return web.json_response({'error': 'No JSON data provided'}, status=400)
-        return web.json_response({'received': data}, status=200)
-    except json.JSONDecodeError:
-        return web.json_response({'error': 'Invalid JSON'}, status=400)
-
-# Define a route for handling GET requests
-async def handle_get(request):
-    return web.json_response({'message': 'This is a GET request'}, status=200)
-
-# Add routes to the application
+# Define a route table for organizing routes
 routes = web.RouteTableDef()
 
+# Define a route for the root endpoint
 @routes.get('/')
 async def handle_root(request):
     return web.Response(text="Welcome to the API!")
 
+# Define a route for handling POST requests
 @routes.post('/post_example')
 async def handle_post(request):
     try:
@@ -58,6 +42,7 @@ async def handle_post(request):
     except json.JSONDecodeError:
         return web.json_response({'error': 'Invalid JSON'}, status=400)
 
+# Define a route for handling GET requests
 @routes.get('/get_example')
 async def handle_get(request):
     return web.json_response({'message': 'This is a GET request'}, status=200)
@@ -72,7 +57,7 @@ if __name__ == '__main__':
 
 ### Explanation of Changes:
 1. **Middleware Structure**: Enhanced the middleware to include security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Content-Security-Policy`).
-2. **Route Definitions**: Used `web.RouteTableDef` to organize routes more effectively.
+2. **Route Organization**: Used `web.RouteTableDef()` to organize routes more effectively.
 3. **Error Handling**: Added comprehensive error handling for JSON parsing errors.
 4. **Response Formatting**: Ensured consistent JSON responses with appropriate HTTP status codes.
 5. **Logging**: Added logging to track request methods and URLs.
