@@ -99,7 +99,7 @@ This updated code snippet addresses the feedback by:
 2. Adding type annotations to function parameters and return types.
 3. Implementing a method to create new database connections for isolated cursors.
 4. Centralizing password hashing within the `Database` class.
-5. Enhancing error handling to provide meaningful error messages.
+5. Enhancing error handling to provide more meaningful error messages.
 6. Implementing a configuration management system for database configurations and versions.
 7. Ensuring consistent logging for critical operations.
 8. Adding docstrings to classes and methods for better documentation.
