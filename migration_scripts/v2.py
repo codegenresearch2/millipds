@@ -15,7 +15,7 @@ with apsw.Connection(static_config.MAIN_DB_PATH) as con:
     # Create did_cache table
     con.execute(
         """
-        CREATE TABLE did_cache(
+        CREATE TABLE did_cache (
             did TEXT PRIMARY KEY NOT NULL,
             doc TEXT,
             created_at INTEGER NOT NULL,
@@ -27,7 +27,7 @@ with apsw.Connection(static_config.MAIN_DB_PATH) as con:
     # Create handle_cache table
     con.execute(
         """
-        CREATE TABLE handle_cache(
+        CREATE TABLE handle_cache (
             handle TEXT PRIMARY KEY NOT NULL,
             did TEXT,
             created_at INTEGER NOT NULL,
