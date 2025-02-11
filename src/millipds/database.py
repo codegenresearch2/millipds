@@ -94,13 +94,10 @@ class Database:
                 raise Exception(
                     "unrecognised db version (TODO: db migrations?!)"
                 )
-
         except apsw.SQLError as e:
-            # If the error is "no such table", it means the tables need to be initialized.
             if "no such table" not in str(e):
                 raise
-            with self.con:
-                self._init_tables()
+            self._init_tables()
 
     def new_con(self, readonly=False) -> apsw.Connection:
         """
@@ -149,8 +146,6 @@ class Database:
             (static_config.MILLIPDS_DB_VERSION, secrets.token_hex()),
         )
 
-        # Create the user table.
-        # Note: head and rev are redundant, technically (rev contained within commit_bytes)
         self.con.execute(
             """
             CREATE TABLE user(
@@ -160,6 +155,8 @@ class Database:
                 prefs BLOB NOT NULL,
                 pw_hash TEXT NOT NULL,
                 signing_key TEXT NOT NULL,
+                head BLOB NOT NULL,
+                rev TEXT NOT NULL,
                 commit_bytes BLOB NOT NULL
             )
             """
@@ -168,7 +165,6 @@ class Database:
         self.con.execute("CREATE UNIQUE INDEX user_by_did ON user(did)")
         self.con.execute("CREATE UNIQUE INDEX user_by_handle ON user(handle)")
 
-        # Create the firehose table.
         self.con.execute(
             """
             CREATE TABLE firehose(
@@ -179,7 +175,6 @@ class Database:
             """
         )
 
-        # Create the mst table.
         self.con.execute(
             """
             CREATE TABLE mst(
@@ -194,7 +189,6 @@ class Database:
         )
         self.con.execute("CREATE INDEX mst_since ON mst(since)")
 
-        # Create the record table.
         self.con.execute(
             """
             CREATE TABLE record(
@@ -211,9 +205,6 @@ class Database:
         )
         self.con.execute("CREATE INDEX record_since ON record(since)")
 
-        # Create the blob table.
-        # Note: blobs have null cid when they're midway through being uploaded,
-        # and they have null "since" when they haven't been committed yet
         self.con.execute(
             """
             CREATE TABLE blob(
@@ -232,7 +223,6 @@ class Database:
         self.con.execute("CREATE UNIQUE INDEX blob_repo_cid ON blob(repo, cid)")
         self.con.execute("CREATE INDEX blob_since ON blob(since)")
 
-        # Create the blob_part table.
         self.con.execute(
             """
             CREATE TABLE blob_part(
@@ -374,8 +364,10 @@ class Database:
                     prefs,
                     pw_hash,
                     signing_key,
+                    head,
+                    rev,
                     commit_bytes
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     did,
@@ -383,6 +375,8 @@ class Database:
                     b'{"preferences":[]}',
                     pw_hash,
                     privkey_pem,
+                    bytes(commit_cid),
+                    tid,
                     commit_bytes,
                 ),
             )
@@ -483,11 +477,11 @@ class Database:
             List[Tuple[str, cbrrr.CID, str]]: A list of tuples containing the DID, head CID, and revision of each repository.
         """
         repos = self.con.execute(
-            "SELECT did, commit_bytes, rev FROM user"
+            "SELECT did, head, rev FROM user"
         ).fetchall()
         if not repos:
             return []
-        return [(did, cbrrr.CID.decode(commit_bytes), rev) for did, commit_bytes, rev in repos]
+        return [(did, cbrrr.CID(head), rev) for did, head, rev in repos]
 
     def get_blockstore(self, did: str) -> "DBBlockStore":
         """
