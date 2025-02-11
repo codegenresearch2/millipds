@@ -17,6 +17,15 @@ routes = web.RouteTableDef()
 
 @routes.get("/xrpc/com.atproto.sync.getBlob")
 async def sync_get_blob(request: web.Request):
+    """
+    Retrieve a blob from the repository.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+    
+    Returns:
+        web.Response: The HTTP response containing the blob data.
+    """
     with get_db(request).new_con(readonly=True) as con:
         blob_id = con.execute(
             "SELECT blob.id FROM blob INNER JOIN user ON blob.repo=user.id WHERE did=? AND cid=? AND refcount>0",
@@ -45,6 +54,15 @@ async def sync_get_blob(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.sync.getBlocks")
 async def sync_get_blocks(request: web.Request):
+    """
+    Retrieve blocks from the repository.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+    
+    Returns:
+        web.Response: The HTTP response containing the blocks data.
+    """
     did = request.query.get("did")
     if did is None:
         raise web.HTTPBadRequest(text="no did specified")
@@ -81,6 +99,15 @@ async def sync_get_blocks(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.sync.getLatestCommit")
 async def sync_get_latest_commit(request: web.Request):
+    """
+    Retrieve the latest commit for a repository.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+    
+    Returns:
+        web.Response: The HTTP response containing the latest commit information.
+    """
     did = request.query.get("did")
     if did is None:
         raise web.HTTPBadRequest(text="no did specified")
@@ -97,6 +124,15 @@ async def sync_get_latest_commit(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.sync.getRecord")
 async def sync_get_record(request: web.Request):
+    """
+    Retrieve a record from the repository.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+    
+    Returns:
+        web.Response: The HTTP response containing the record data.
+    """
     if "did" not in request.query:
         raise web.HTTPBadRequest(text="missing did")
     if "collection" not in request.query:
@@ -118,6 +154,15 @@ async def sync_get_record(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.sync.getRepoStatus")
 async def sync_get_repo_status(request: web.Request):
+    """
+    Retrieve the status of a repository.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+    
+    Returns:
+        web.Response: The HTTP response containing the repository status.
+    """
     did = request.query.get("did")
     if did is None:
         raise web.HTTPBadRequest(text="no did specified")
@@ -133,6 +178,15 @@ async def sync_get_repo_status(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.sync.getRepo")
 async def sync_get_repo(request: web.Request):
+    """
+    Retrieve the repository data.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+    
+    Returns:
+        web.Response: The HTTP response containing the repository data.
+    """
     did = request.query.get("did")
     if did is None:
         raise web.HTTPBadRequest(text="no did specified")
@@ -170,6 +224,15 @@ async def sync_get_repo(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.sync.listBlobs")
 async def sync_list_blobs(request: web.Request):
+    """
+    List blobs in the repository.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+    
+    Returns:
+        web.Response: The HTTP response containing the list of blobs.
+    """
     did = request.query.get("did")
     if did is None:
         raise web.HTTPBadRequest(text="no did specified")
@@ -193,6 +256,15 @@ async def sync_list_blobs(request: web.Request):
 
 @routes.get("/xrpc/com.atproto.sync.listRepos")
 async def sync_list_repos(request: web.Request):
+    """
+    List all repositories.
+    
+    Args:
+        request (web.Request): The HTTP request object.
+    
+    Returns:
+        web.Response: The HTTP response containing the list of repositories.
+    """
     return web.json_response(
         {
             "repos": [
