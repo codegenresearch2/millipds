@@ -1,4 +1,3 @@
-# Correcting the syntax error in the comment at line 44
 # This is a corrected version of the code snippet provided earlier.
 
 import logging
