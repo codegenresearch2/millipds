@@ -60,11 +60,12 @@ class DIDResolver:
 		if row is not None:
 			self.hits += 1
 			doc = row['doc']
+			logger.info(f"DID {did} cache hit. Total hits: {self.hits}, Total misses: {self.misses}")
 			return None if doc is None else json.loads(doc)
 
 		# cache miss
 		self.misses += 1
-		logger.info(f"DID cache miss for {did}. Total hits: {self.hits}, Total misses: {self.misses}")
+		logger.info(f"DID {did} cache miss. Total hits: {self.hits}, Total misses: {self.misses}")
 		try:
 			doc = await self.resolve_uncached(did)
 			logger.info(f"DID {did} resolved successfully.")
@@ -73,20 +74,21 @@ class DIDResolver:
 			doc = None
 
 		# update the cache
-		expires_at = now + (
-			static_config.DID_CACHE_ERROR_TTL
-			if doc is None
-			else static_config.DID_CACHE_TTL
-		)
-		db.con.execute(
-			"INSERT OR REPLACE INTO did_cache (did, doc, created_at, expires_at) VALUES (?, ?, ?, ?)",
-			(
-				did,
-				None if doc is None else util.compact_json(doc),
-				int(time.time()),
-				expires_at,
-			),
-		)
+		if doc is not None:
+			expires_at = now + (
+				static_config.DID_CACHE_ERROR_TTL
+				if doc is None
+				else static_config.DID_CACHE_TTL
+			)
+			db.con.execute(
+				"INSERT OR REPLACE INTO did_cache (did, doc, created_at, expires_at) VALUES (?, ?, ?, ?)",
+				(
+					did,
+					None if doc is None else util.compact_json(doc),
+					int(time.time()),
+					expires_at,
+				),
+			)
 
 		return doc
 
