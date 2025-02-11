@@ -9,7 +9,7 @@ app = web.Application(middlewares=[cors_middleware(allow_all=True)])
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Define a middleware for handling service proxying and injecting security headers
+# Define a middleware for handling service proxying
 async def service_proxy_middleware(app, handler):
     async def middleware_handler(request):
         # Implement service proxying logic here
