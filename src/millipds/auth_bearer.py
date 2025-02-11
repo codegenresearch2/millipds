@@ -31,12 +31,12 @@ def authenticated(handler):
         # verifying all the things that need verifying
         db = get_db(request)
 
-        unverified = jwt.api_jwt.decode_complete(
-            token, options={"verify_signature": False}
-        )
-        # logger.info(unverified)
-        if unverified["header"]["alg"] == "HS256":  # symmetric secret
-            try:
+        try:
+            unverified = jwt.api_jwt.decode_complete(
+                token, options={"verify_signature": False}
+            )
+            # logger.info(unverified)
+            if unverified["header"]["alg"] == "HS256":  # symmetric secret
                 payload: dict = jwt.decode(
                     jwt=token,
                     key=db.config["jwt_access_secret"],
@@ -49,37 +49,34 @@ def authenticated(handler):
                         "strict_aud": True,  # may be unnecessary
                     },
                 )
-            except jwt.exceptions.PyJWTError:
-                raise web.HTTPUnauthorized(text="invalid jwt")
 
-            # if we reached this far, the payload must've been signed by us
-            if payload.get("scope") != "com.atproto.access":
-                raise web.HTTPUnauthorized(text="invalid jwt scope")
+                # if we reached this far, the payload must've been signed by us
+                if payload.get("scope") != "com.atproto.access":
+                    raise web.HTTPUnauthorized(text="invalid jwt scope")
 
-            subject: str = payload.get("sub", "")
-            if not subject.startswith("did:"):
-                raise web.HTTPUnauthorized(text="invalid jwt: invalid subject")
-            
-            jti = payload.get("jti", "")
-            if not jti:
-                raise web.HTTPUnauthorized(text="invalid jwt: missing jti")
-            
-            if db.is_token_revoked(subject, jti):
-                raise web.HTTPUnauthorized(text="Token has been revoked")
+                subject: str = payload.get("sub", "")
+                if not subject.startswith("did:"):
+                    raise web.HTTPUnauthorized(text="invalid jwt: invalid subject")
+                
+                jti = payload.get("jti", "")
+                if not jti:
+                    raise web.HTTPUnauthorized(text="invalid jwt: missing jti")
+                
+                if db.is_token_revoked(subject, jti):
+                    raise web.HTTPUnauthorized(text="Token has been revoked")
 
-            request["authed_did"] = subject
-        else:  # asymmetric service auth (scoped to a specific lxm)
-            did: str = unverified["payload"]["iss"]
-            if not did.startswith("did:"):
-                raise web.HTTPUnauthorized(text="invalid jwt: invalid issuer")
-            signing_key_pem = db.signing_key_pem_by_did(did)
-            if signing_key_pem is None:
-                raise web.HTTPUnauthorized(text="invalid jwt: unknown issuer")
-            alg = crypto.jwt_signature_alg_for_pem(signing_key_pem)
-            verifying_key = crypto.privkey_from_pem(
-                signing_key_pem
-            ).public_key()
-            try:
+                request["authed_did"] = subject
+            else:  # asymmetric service auth (scoped to a specific lxm)
+                did: str = unverified["payload"]["iss"]
+                if not did.startswith("did:"):
+                    raise web.HTTPUnauthorized(text="invalid jwt: invalid issuer")
+                signing_key_pem = db.signing_key_pem_by_did(did)
+                if signing_key_pem is None:
+                    raise web.HTTPUnauthorized(text="invalid jwt: unknown issuer")
+                alg = crypto.jwt_signature_alg_for_pem(signing_key_pem)
+                verifying_key = crypto.privkey_from_pem(
+                    signing_key_pem
+                ).public_key()
                 payload = jwt.decode(
                     jwt=token,
                     key=verifying_key,
@@ -92,21 +89,21 @@ def authenticated(handler):
                         "strict_aud": True,  # may be unnecessary
                     },
                 )
-            except jwt.exceptions.PyJWTError:
-                raise web.HTTPUnauthorized(text="invalid jwt")
 
-            request_lxm = request.path.rpartition("/")[2].partition("?")[0]
-            if request_lxm != payload.get("lxm"):
-                raise web.HTTPUnauthorized(text="invalid jwt: bad lxm")
+                request_lxm = request.path.rpartition("/")[2].partition("?")[0]
+                if request_lxm != payload.get("lxm"):
+                    raise web.HTTPUnauthorized(text="invalid jwt: bad lxm")
 
-            jti = payload.get("jti", "")
-            if not jti:
-                raise web.HTTPUnauthorized(text="invalid jwt: missing jti")
-            
-            if db.is_token_revoked(did, jti):
-                raise web.HTTPUnauthorized(text="Token has been revoked")
+                jti = payload.get("jti", "")
+                if not jti:
+                    raise web.HTTPUnauthorized(text="invalid jwt: missing jti")
+                
+                if db.is_token_revoked(did, jti):
+                    raise web.HTTPUnauthorized(text="Token has been revoked")
 
-            request["authed_did"] = did
+                request["authed_did"] = did
+        except jwt.exceptions.PyJWTError as e:
+            raise web.HTTPUnauthorized(text=str(e))
 
         return await handler(request, *args, **kwargs)
 
