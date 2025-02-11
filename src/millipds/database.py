@@ -7,7 +7,7 @@ from typing import Optional, Dict, List, Tuple
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class DBBlockStore(apsw.Connection):
+class BlockStore(apsw.Connection):
     def __init__(self, db: apsw.Connection, repo: str):
         super().__init__(db.path)
         self.db = db
@@ -186,7 +186,7 @@ class Database:
 
 
 This updated code snippet addresses the feedback by:
-1. Creating a `DBBlockStore` class that inherits from `apsw.Connection` to adapt the database for a specific library.
+1. Creating a `BlockStore` class that inherits from `apsw.Connection` to adapt the database for a specific library.
 2. Creating new connections for isolated cursors.
 3. Including a configuration table and checking for its existence.
 4. Integrating password hashing within the database class.
@@ -194,5 +194,5 @@ This updated code snippet addresses the feedback by:
 6. Handling exceptions appropriately.
 7. Documenting methods clearly to explain their purpose and usage.
 8. Modularizing code for better organization and reusability.
-9. Using logging strategically to provide insights into the application's state and actions.
+9. Using logging strategically throughout the methods to provide insights into the application's state and actions.
 10. Carefully managing data formats for database interactions.
