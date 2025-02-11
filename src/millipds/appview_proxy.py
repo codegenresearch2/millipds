@@ -12,12 +12,14 @@ from .did import DIDResolver
 
 logger = logging.getLogger(__name__)
 
-# Initialize DIDResolver
+# Initialize DIDResolver with the necessary client
 did_resolver = DIDResolver(client, static_config.PLC_DIRECTORY_HOST)
 
+@authenticated
 async def service_proxy(request: web.Request, service: Optional[str] = None):
     """
-    If `service` is None, default to bsky appview (per details in db config)
+    Proxy requests to the appropriate service based on the provided `service` parameter.
+    If `service` is None, default to bsky appview (per details in db config).
     """
     lxm = request.path.rpartition("/")[2].partition("?")[0]
     # TODO: verify valid lexicon method?
