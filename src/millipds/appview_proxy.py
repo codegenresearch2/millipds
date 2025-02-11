@@ -10,14 +10,6 @@ from .did import get_did_resolver
 
 logger = logging.getLogger(__name__)
 
-# TODO: this should be done via actual DID resolution, not hardcoded!
-SERVICE_ROUTES = {
-    "did:web:api.bsky.chat#bsky_chat": "https://api.bsky.chat",
-    "did:web:discover.bsky.app#bsky_fg": "https://discover.bsky.app",
-    "did:plc:ar7c4by46qjdydhdevvrndac#atproto_labeler": "https://mod.bsky.app",
-}
-
-@authenticated
 async def service_proxy(request: web.Request, service: Optional[str] = None):
     """
     If `service` is None, default to bsky appview (per details in db config)
