@@ -1,14 +1,15 @@
 import logging
-
 import jwt
 from aiohttp import web
-
 from .app_util import *
 from . import crypto
 
 logger = logging.getLogger(__name__)
 
 routes = web.RouteTableDef()
+
+# Ensure app is defined and initialized
+app = web.Application()
 
 def revoked_token_middleware(app):
     async def middleware(request, handler):
@@ -58,7 +59,7 @@ def authenticated(handler):
                     algorithms=["HS256"],
                     audience=db.config["pds_did"],
                     options={
-                        "require": ["exp", "iat", "scope"],  # consider iat?
+                        "require": ["exp", "iat", "scope", "jti", "sub"],  # consider iat?
                         "verify_exp": True,
                         "verify_iat": True,
                         "strict_aud": True,  # may be unnecessary
@@ -93,7 +94,7 @@ def authenticated(handler):
                     algorithms=[alg],
                     audience=db.config["pds_did"],
                     options={
-                        "require": ["exp", "iat", "lxm"],
+                        "require": ["exp", "iat", "lxm", "jti", "iss"],
                         "verify_exp": True,
                         "verify_iat": True,
                         "strict_aud": True,  # may be unnecessary
