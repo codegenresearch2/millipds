@@ -1,15 +1,13 @@
 import logging
-
 import jwt
 from aiohttp import web
-
 from .app_util import *
 from . import crypto
+from .database import RevokedToken
 
 logger = logging.getLogger(__name__)
 
 routes = web.RouteTableDef()
-
 
 def authenticated(handler):
 	"""
@@ -34,6 +32,10 @@ def authenticated(handler):
 		# verifying all the things that need verifying
 		db = get_db(request)
 
+		# Check if the token is revoked
+		if RevokedToken.is_token_revoked(token):
+			raise web.HTTPUnauthorized(text="token has been revoked")
+
 		unverified = jwt.api_jwt.decode_complete(
 			token, options={"verify_signature": False}
 		)
@@ -46,7 +48,7 @@ def authenticated(handler):
 					algorithms=["HS256"],
 					audience=db.config["pds_did"],
 					options={
-						"require": ["exp", "iat", "scope", "jti", "sub"],
+						"require": ["exp", "iat", "scope"],  # consider iat?
 						"verify_exp": True,
 						"verify_iat": True,
 						"strict_aud": True,  # may be unnecessary
@@ -54,14 +56,6 @@ def authenticated(handler):
 				)
 			except jwt.exceptions.PyJWTError:
 				raise web.HTTPUnauthorized(text="invalid jwt")
-
-			revoked = db.con.execute(
-				"SELECT COUNT(*) FROM revoked_token WHERE did=? AND jti=?",
-				(payload["sub"], payload["jti"]),
-			).fetchone()[0]
-
-			if revoked:
-				raise web.HTTPUnauthorized(text="revoked token")
 
 			# if we reached this far, the payload must've been signed by us
 			if payload.get("scope") != "com.atproto.access":
@@ -89,7 +83,7 @@ def authenticated(handler):
 					algorithms=[alg],
 					audience=db.config["pds_did"],
 					options={
-						"require": ["exp", "iat", "lxm", "jti", "iss"],
+						"require": ["exp", "iat", "lxm"],
 						"verify_exp": True,
 						"verify_iat": True,
 						"strict_aud": True,  # may be unnecessary
@@ -97,14 +91,6 @@ def authenticated(handler):
 				)
 			except jwt.exceptions.PyJWTError:
 				raise web.HTTPUnauthorized(text="invalid jwt")
-
-			revoked = db.con.execute(
-				"SELECT COUNT(*) FROM revoked_token WHERE did=? AND jti=?",
-				(payload["iss"], payload["jti"]),
-			).fetchone()[0]
-
-			if revoked:
-				raise web.HTTPUnauthorized(text="revoked token")
 
 			request_lxm = request.path.rpartition("/")[2].partition("?")[0]
 			if request_lxm != payload.get("lxm"):
