@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 # https://rogerbinns.github.io/apsw/bestpractice.html
 apsw.bestpractice.apply(apsw.bestpractice.recommended)
 
-
 class DBBlockStore(BlockStore):
 	"""
 	Adapt the db for consumption by the atmst library
@@ -52,7 +51,6 @@ class DBBlockStore(BlockStore):
 
 	def put_block(self, key: bytes, value: bytes) -> None:
 		raise NotImplementedError("TODO?")
-
 
 class Database:
 	def __init__(self, path: str = static_config.MAIN_DB_PATH) -> None:
@@ -140,12 +138,14 @@ class Database:
 		self.con.execute("CREATE UNIQUE INDEX user_by_did ON user(did)")
 		self.con.execute("CREATE UNIQUE INDEX user_by_handle ON user(handle)")
 
+		# Adding new table for firehose_queue
 		self.con.execute(
 			"""
-			CREATE TABLE firehose(
-				seq INTEGER PRIMARY KEY AUTOINCREMENT,
-				timestamp INTEGER NOT NULL,
-				msg BLOB NOT NULL
+			CREATE TABLE firehose_queue(
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				user_id INTEGER NOT NULL,
+				queue_data BLOB NOT NULL,
+				FOREIGN KEY (user_id) REFERENCES user(id)
 			)
 			"""
 		)
@@ -224,18 +224,6 @@ class Database:
 			CREATE TABLE did_cache(
 				did TEXT PRIMARY KEY NOT NULL,
 				doc TEXT,
-				created_at INTEGER NOT NULL,
-				expires_at INTEGER NOT NULL
-			)
-			"""
-		)
-
-		# likewise, a null did represents a failed resolution
-		self.con.execute(
-			"""
-			CREATE TABLE handle_cache(
-				handle TEXT PRIMARY KEY NOT NULL,
-				did TEXT,
 				created_at INTEGER NOT NULL,
 				expires_at INTEGER NOT NULL
 			)
@@ -406,3 +394,26 @@ class Database:
 
 	def get_blockstore(self, did: str) -> "Database":
 		return DBBlockStore(self, did)
+
+	# Adding new method to handle firehose queue
+	def add_to_firehose_queue(self, user_id: int, queue_data: bytes):
+		self.con.execute(
+			"INSERT INTO firehose_queue (user_id, queue_data) VALUES (?, ?)",
+			(user_id, queue_data),
+		)
+
+	# Adding new method to get firehose queues for a user
+	def get_firehose_queues(self, user_id: int) -> List[bytes]:
+		return [
+			row[0]
+			for row in self.con.execute(
+				"SELECT queue_data FROM firehose_queue WHERE user_id=?", (user_id,)
+			).fetchall()
+		]
+
+	# Adding new method to remove a queue from firehose_queue table
+	def remove_from_firehose_queue(self, user_id: int, queue_data: bytes):
+		self.con.execute(
+			"DELETE FROM firehose_queue WHERE user_id=? AND queue_data=?",
+			(user_id, queue_data),
+		)
