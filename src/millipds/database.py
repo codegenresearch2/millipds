@@ -60,14 +60,16 @@ class Database:
                 raise Exception(
                     "unrecognised db version (TODO: db migrations?!)"
                 )
-
         except apsw.SQLError as e:
             if "no such table" not in str(e):
                 raise
             with self.con:
                 self._init_tables()
 
-    def new_con(self, readonly=False):
+    def new_con(self, readonly=False) -> apsw.Connection:
+        """
+        Create a new database connection
+        """
         return apsw.Connection(
             self.path,
             flags=(
@@ -77,7 +79,10 @@ class Database:
             ),
         )
 
-    def _init_tables(self):
+    def _init_tables(self) -> None:
+        """
+        Initialize the database tables
+        """
         logger.info("initing tables")
         self.con.execute(
             """
@@ -197,7 +202,10 @@ class Database:
         pds_did: Optional[str] = None,
         bsky_appview_pfx: Optional[str] = None,
         bsky_appview_did: Optional[str] = None,
-    ):
+    ) -> None:
+        """
+        Update the configuration settings
+        """
         with self.con:
             if pds_pfx is not None:
                 self.con.execute("UPDATE config SET pds_pfx=?", (pds_pfx,))
@@ -219,6 +227,9 @@ class Database:
 
     @cached_property
     def config(self) -> Dict[str, object]:
+        """
+        Get the configuration settings
+        """
         config_fields = (
             "db_version",
             "pds_pfx",
@@ -235,9 +246,15 @@ class Database:
         return dict(zip(config_fields, cfg))
 
     def config_is_initialised(self) -> bool:
+        """
+        Check if the configuration is initialized
+        """
         return all(v is not None for v in self.config.values())
 
     def print_config(self, redact_secrets: bool = True) -> None:
+        """
+        Print the configuration settings
+        """
         maxlen = max(map(len, self.config))
         for k, v in self.config.items():
             if redact_secrets and "secret" in k:
@@ -245,6 +262,9 @@ class Database:
             print(f"{k:<{maxlen}} : {v!r}")
 
     def hash_password(self, password: str) -> str:
+        """
+        Hash a password
+        """
         return self.pw_hasher.hash(password)
 
     def create_account(
@@ -254,6 +274,9 @@ class Database:
         password: str,
         privkey: crypto.ec.EllipticCurvePrivateKey,
     ) -> None:
+        """
+        Create a new user account
+        """
         pw_hash = self.hash_password(password)
         privkey_pem = crypto.privkey_to_pem(privkey)
         logger.info(f"creating account for did={did}, handle={handle}")
@@ -306,6 +329,9 @@ class Database:
     def verify_account_login(
         self, did_or_handle: str, password: str
     ) -> Tuple[str, str, str, str]:
+        """
+        Verify a user account login
+        """
         row = self.con.execute(
             "SELECT did, handle, pw_hash FROM user WHERE did=? OR handle=?",
             (did_or_handle, did_or_handle),
@@ -320,6 +346,9 @@ class Database:
         return did, handle
 
     def did_by_handle(self, handle: str) -> Optional[str]:
+        """
+        Get the DID by handle
+        """
         row = self.con.execute(
             "SELECT did FROM user WHERE handle=?", (handle,)
         ).fetchone()
@@ -328,6 +357,9 @@ class Database:
         return row[0]
 
     def handle_by_did(self, did: str) -> Optional[str]:
+        """
+        Get the handle by DID
+        """
         row = self.con.execute(
             "SELECT handle FROM user WHERE did=?", (did,)
         ).fetchone()
@@ -336,6 +368,9 @@ class Database:
         return row[0]
 
     def signing_key_pem_by_did(self, did: str) -> Optional[str]:
+        """
+        Get the signing key PEM by DID
+        """
         row = self.con.execute(
             "SELECT signing_key FROM user WHERE did=?", (did,)
         ).fetchone()
@@ -346,6 +381,9 @@ class Database:
     def list_repos(
         self,
     ) -> List[Tuple[str, cbrrr.CID, str]]:
+        """
+        List all repositories
+        """
         return [
             (did, cbrrr.CID(head), rev)
             for did, head, rev in self.con.execute(
@@ -354,9 +392,15 @@ class Database:
         ]
 
     def get_blockstore(self, did: str) -> "Database":
+        """
+        Get the blockstore for a repository
+        """
         return DBBlockStore(self, did)
 
     def get_user_preferences(self, did: str) -> Dict[str, object]:
+        """
+        Get the user preferences by DID
+        """
         row = self.con.execute(
             "SELECT prefs FROM user WHERE did=?", (did,)
         ).fetchone()
@@ -365,6 +409,9 @@ class Database:
         return json.loads(row[0].decode())
 
     def update_user_preferences(self, did: str, prefs: Dict[str, object]) -> None:
+        """
+        Update the user preferences by DID
+        """
         with self.con:
             self.con.execute(
                 "UPDATE user SET prefs=? WHERE did=?",
