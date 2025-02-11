@@ -37,14 +37,14 @@ def authenticated(handler):
 			raise web.HTTPUnauthorized(text="token has been revoked")
 
 		try:
-			unverified_payload = jwt.api_jwt.decode_complete(
+			unverified = jwt.api_jwt.decode_complete(
 				token, options={"verify_signature": False}
 			)
-			logger.info("Unverified payload: %s", unverified_payload)
+			logger.info("Unverified payload: %s", unverified)
 		except jwt.exceptions.PyJWTError:
 			raise web.HTTPUnauthorized(text="invalid jwt")
 
-		alg = unverified_payload["header"].get("alg")
+		alg = unverified["header"].get("alg")
 		if alg == "HS256":  # symmetric secret
 			try:
 				payload: dict = jwt.decode(
@@ -71,7 +71,7 @@ def authenticated(handler):
 				raise web.HTTPUnauthorized(text="invalid jwt: invalid subject")
 			request["authed_did"] = subject
 		else:  # asymmetric service auth (scoped to a specific lxm)
-			did: str = unverified_payload["payload"]["iss"]
+			did: str = unverified["payload"]["iss"]
 			if not did.startswith("did:"):
 				raise web.HTTPUnauthorized(text="invalid jwt: invalid issuer")
 			signing_key_pem = db.signing_key_pem_by_did(did)
