@@ -30,9 +30,7 @@ class BlockStore(apsw.Connection):
         )
 
     def del_block(self, key: bytes):
-        self.execute(
-            "DELETE FROM mst WHERE repo=? AND cid=?", (self.user_id, key)
-        )
+        raise NotImplementedError("This method is not yet implemented.")
 
 class Database:
     def __init__(self, path: str):
