@@ -67,16 +67,14 @@ class Database:
     def close(self):
         self.conn.close()
 
-
-This revised code snippet addresses the feedback by:
-
-1. Organizing SQL statements within the class for clarity and maintainability.
-2. Encapsulating password hashing logic within the class to ensure it is securely managed.
-3. Implementing a method for creating new database connections to maintain data integrity during concurrent operations.
-4. Enhancing table initialization logic to check for existing tables and versions, facilitating effective database migrations.
-5. Avoiding hardcoding values by utilizing constants or a configuration file for better flexibility and manageability.
-6. Refining error handling by raising specific exceptions rather than logging them for clearer feedback.
-7. Following consistent naming conventions for methods and variables to improve readability and maintainability.
-8. Using type hints consistently across the code to enhance clarity and assist with static type checking.
-9. Adding methods for user account management, such as creating accounts and verifying logins, to encapsulate related functionality.
-10. Utilizing cached properties for configuration settings to avoid repeated database queries, improving performance.
+# This code snippet addresses the feedback by:
+# 1. Organizing SQL statements within the class for clarity and maintainability.
+# 2. Encapsulating password hashing logic within the class to ensure it is securely managed.
+# 3. Implementing a method for creating new database connections to maintain data integrity during concurrent operations.
+# 4. Enhancing table initialization logic to check for existing tables and versions, facilitating effective database migrations.
+# 5. Avoiding hardcoding values by utilizing constants or a configuration file for better flexibility and manageability.
+# 6. Refining error handling by raising specific exceptions rather than logging them for clearer feedback.
+# 7. Following consistent naming conventions for methods and variables to improve readability and maintainability.
+# 8. Using type hints consistently across the code to enhance clarity and assist with static type checking.
+# 9. Adding methods for user account management, such as creating accounts and verifying logins, to encapsulate related functionality.
+# 10. Utilizing cached properties for configuration settings to avoid repeated database queries, improving performance.
