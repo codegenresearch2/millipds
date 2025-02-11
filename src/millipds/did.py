@@ -50,8 +50,6 @@ class DIDResolver:
 	async def resolve_with_db_cache(
 		self, db: Database, did: str
 	) -> Optional[DIDDoc]:
-		# TODO: prevent concurrent queries for the same DID - use locks?
-
 		# try the db first
 		now = int(time.time())
 		row = db.con.execute(
@@ -85,7 +83,6 @@ class DIDResolver:
 		)
 
 		# update the cache (note: we cache failures too, but with a shorter TTL)
-		# TODO: if current doc is None, only replace if the existing entry is also None
 		db.con.execute(
 			"INSERT OR REPLACE INTO did_cache (did, doc, created_at, expires_at) VALUES (?, ?, ?, ?)",
 			(
@@ -138,12 +135,14 @@ class DIDResolver:
 			f"{self.plc_directory_host}/{did}", self.DIDDOC_LENGTH_LIMIT
 		)
 
+
 # Example usage
 async def main():
 	async with aiohttp.ClientSession() as session:
 		resolver = DIDResolver(session)
 		print(await resolver.resolve_uncached("did:web:example.com"))
 		print(await resolver.resolve_uncached("did:plc:example"))
+
 
 if __name__ == "__main__":
 	asyncio.run(main())
