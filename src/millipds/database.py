@@ -287,40 +287,18 @@ class Database:
 
     def did_by_handle(self, handle: str) -> Optional[str]:
         row = self.con.execute(
-            "SELECT did FROM handle_cache WHERE handle=?", (handle,)
+            "SELECT did FROM user WHERE handle=?", (handle,)
         ).fetchone()
         if row is None:
-            row = self.con.execute(
-                "SELECT did FROM user WHERE handle=?", (handle,)
-            ).fetchone()
-            if row is None:
-                return None
-            did = row[0]
-            with self.con:
-                self.con.execute(
-                    "INSERT INTO handle_cache (handle, did, created_at, expires_at) VALUES (?, ?, ?, ?)",
-                    (handle, did, util.time_now(), util.time_now() + static_config.HANDLE_CACHE_TTL),
-                )
-            return did
+            return None
         return row[0]
 
     def handle_by_did(self, did: str) -> Optional[str]:
         row = self.con.execute(
-            "SELECT handle FROM handle_cache WHERE did=?", (did,)
+            "SELECT handle FROM user WHERE did=?", (did,)
         ).fetchone()
         if row is None:
-            row = self.con.execute(
-                "SELECT handle FROM user WHERE did=?", (did,)
-            ).fetchone()
-            if row is None:
-                return None
-            handle = row[0]
-            with self.con.begin():
-                self.con.execute(
-                    "INSERT INTO handle_cache (handle, did, created_at, expires_at) VALUES (?, ?, ?, ?)",
-                    (handle, did, util.time_now(), util.time_now() + static_config.HANDLE_CACHE_TTL),
-                )
-            return handle
+            return None
         return row[0]
 
     def signing_key_pem_by_did(self, did: str) -> Optional[str]:
