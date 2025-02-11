@@ -1,3 +1,5 @@
+# TODO: some smarter way of handling migrations
+
 import apsw
 import apsw.bestpractice
 
