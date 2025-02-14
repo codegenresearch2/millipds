@@ -1,9 +1,4 @@
-"""
-Ideally, all SQL statements are contained within this file.
-
-Password hashing also happens in here, because it doesn't make much sense to do
-it anywhere else.
-"""
+"""\nIdeally, all SQL statements are contained within this file.\n\nPassword hashing also happens in here, because it doesn't make much sense to do\nit anywhere else.\n"""
 
 from typing import Optional, Dict, List, Tuple
 from functools import cached_property
@@ -29,9 +24,7 @@ apsw.bestpractice.apply(apsw.bestpractice.recommended)
 
 
 class DBBlockStore(BlockStore):
-	"""
-	Adapt the db for consumption by the atmst library
-	"""
+	"""\n	Adapt the db for consumption by the atmst library\n	"""
 
 	def __init__(self, db: apsw.Connection, repo: str) -> None:
 		self.db = db
@@ -77,16 +70,11 @@ class Database:
 				self._init_tables()
 
 	def new_con(self, readonly=False):
-		"""
-		https://rogerbinns.github.io/apsw/cursor.html
-		"Cursors on the same Connection are not isolated from each other.
+		"""\n		https://rogerbinns.github.io/apsw/cursor.html\n		"Cursors on the same Connection are not isolated from each other.
 		Anything done on one cursor is immediately visible to all other Cursors
 		on the same connection. This still applies if you start transactions.
 		Connections are isolated from each other with cursors on other
-		connections not seeing changes until they are committed."
-
-		therefore we frequently spawn new connections when we need an isolated cursor
-		"""
+		connections not seeing changes until they are committed."\n\n		therefore we frequently spawn new connections when we need an isolated cursor\n		"""
 		return apsw.Connection(
 			self.path,
 			flags=(
@@ -99,87 +87,35 @@ class Database:
 	def _init_tables(self):
 		logger.info("initing tables")
 		self.con.execute(
-			"""
-			CREATE TABLE config(
-				db_version INTEGER NOT NULL,
-				pds_pfx TEXT,
-				pds_did TEXT,
-				bsky_appview_pfx TEXT,
-				bsky_appview_did TEXT,
-				jwt_access_secret TEXT NOT NULL
-			) STRICT
-			"""
+			"""\n			CREATE TABLE config(\n				db_version INTEGER NOT NULL,\n				pds_pfx TEXT,\n				pds_did TEXT,\n				bsky_appview_pfx TEXT,\n				bsky_appview_did TEXT,\n				jwt_access_secret TEXT NOT NULL\n			) STRICT\n			"""
 		)
 
 		self.con.execute(
-			"""
-			INSERT INTO config(
-				db_version,
-				jwt_access_secret
-			) VALUES (?, ?)
-			""",
+			"""\n			INSERT INTO config(\n				db_version,\n				jwt_access_secret\n			) VALUES (?, ?)\n			""",
 			(static_config.MILLIPDS_DB_VERSION, secrets.token_hex()),
 		)
 
 		# TODO: head and rev are redundant, technically (rev contained within commit_bytes)
 		self.con.execute(
-			"""
-			CREATE TABLE user(
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				did TEXT NOT NULL,
-				handle TEXT NOT NULL,
-				prefs BLOB NOT NULL,
-				pw_hash TEXT NOT NULL,
-				signing_key TEXT NOT NULL,
-				head BLOB NOT NULL,
-				rev TEXT NOT NULL,
-				commit_bytes BLOB NOT NULL
-			) STRICT
-			"""
+			"""\n			CREATE TABLE user(\n				id INTEGER PRIMARY KEY AUTOINCREMENT,\n				did TEXT NOT NULL,\n				handle TEXT NOT NULL,\n				prefs BLOB NOT NULL,\n				pw_hash TEXT NOT NULL,\n				signing_key TEXT NOT NULL,\n				head BLOB NOT NULL,\n				rev TEXT NOT NULL,\n				commit_bytes BLOB NOT NULL\n			) STRICT\n			"""
 		)
 
 		self.con.execute("CREATE UNIQUE INDEX user_by_did ON user(did)")
 		self.con.execute("CREATE UNIQUE INDEX user_by_handle ON user(handle)")
 
 		self.con.execute(
-			"""
-			CREATE TABLE firehose(
-				seq INTEGER PRIMARY KEY AUTOINCREMENT,
-				timestamp INTEGER NOT NULL,
-				msg BLOB NOT NULL
-			) STRICT
-			"""
+			"""\n			CREATE TABLE firehose(\n				seq INTEGER PRIMARY KEY AUTOINCREMENT,\n				timestamp INTEGER NOT NULL,\n				msg BLOB NOT NULL\n			) STRICT\n			"""
 		)
 
 		# repo storage stuff
 		self.con.execute(
-			"""
-			CREATE TABLE mst(
-				repo INTEGER NOT NULL,
-				cid BLOB NOT NULL,
-				since TEXT NOT NULL,
-				value BLOB NOT NULL,
-				FOREIGN KEY (repo) REFERENCES user(id),
-				PRIMARY KEY (repo, cid)
-			) STRICT, WITHOUT ROWID
-			"""
+			"""\n			CREATE TABLE mst(\n				repo INTEGER NOT NULL,\n				cid BLOB NOT NULL,\n				since TEXT NOT NULL,\n				value BLOB NOT NULL,\n				FOREIGN KEY (repo) REFERENCES user(id),\n				PRIMARY KEY (repo, cid)\n			) STRICT, WITHOUT ROWID\n			"""
 		)
 		# should maybe be (repo, since) instead?
 		self.con.execute("CREATE INDEX mst_since ON mst(since)")
 
 		self.con.execute(
-			"""
-			CREATE TABLE record(
-				repo INTEGER NOT NULL,
-				nsid TEXT NOT NULL,
-				rkey TEXT NOT NULL,
-				cid BLOB NOT NULL,
-				since TEXT NOT NULL,
-				value BLOB NOT NULL,
-				FOREIGN KEY (repo) REFERENCES user(id),
-				PRIMARY KEY (repo, nsid, rkey)
-			) STRICT, WITHOUT ROWID
-			"""
+			"""\n			CREATE TABLE record(\n				repo INTEGER NOT NULL,\n				nsid TEXT NOT NULL,\n				rkey TEXT NOT NULL,\n				cid BLOB NOT NULL,\n				since TEXT NOT NULL,\n				value BLOB NOT NULL,\n				FOREIGN KEY (repo) REFERENCES user(id),\n				PRIMARY KEY (repo, nsid, rkey)\n			) STRICT, WITHOUT ROWID\n			"""
 		)
 		# should maybe be (repo, since) instead? maybe also (repo, nsid, since)?
 		self.con.execute("CREATE INDEX record_since ON record(since)")
@@ -187,20 +123,10 @@ class Database:
 		# nb: blobs are partitioned per-repo
 		# TODO: think carefully about refcount/since interaction?
 		# TODO: when should blob GC happen? after each commit? (nah, that would behave badly with e.g. concurrent browser sessions)
-		# NOTE: blobs have null cid when they're midway through being uploaded,
-		# and they have null "since" when they haven't been committed yet
+		# NOTE: blobs have null cid when they're midway through being uploaded,\n		# and they have null "since" when they haven't been committed yet
 		# TODO: store length explicitly?
 		self.con.execute(
-			"""
-			CREATE TABLE blob(
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				repo INTEGER NOT NULL,
-				cid BLOB,
-				refcount INTEGER NOT NULL,
-				since TEXT,
-				FOREIGN KEY (repo) REFERENCES user(id)
-			) STRICT
-			"""
+			"""\n			CREATE TABLE blob(\n				id INTEGER PRIMARY KEY AUTOINCREMENT,\n				repo INTEGER NOT NULL,\n				cid BLOB,\n				refcount INTEGER NOT NULL,\n				since TEXT,\n				FOREIGN KEY (repo) REFERENCES user(id)\n			) STRICT\n			"""
 		)
 		self.con.execute(
 			"CREATE INDEX blob_isrefd ON blob(refcount, refcount > 0)"
@@ -209,53 +135,18 @@ class Database:
 		self.con.execute("CREATE INDEX blob_since ON blob(since)")
 
 		self.con.execute(
-			"""
-			CREATE TABLE blob_part(
-				blob INTEGER NOT NULL,
-				idx INTEGER NOT NULL,
-				data BLOB NOT NULL,
-				PRIMARY KEY (blob, idx),
-				FOREIGN KEY (blob) REFERENCES blob(id)
-			) STRICT, WITHOUT ROWID
-			"""
+			"""\n			CREATE TABLE blob_part(\n				blob INTEGER NOT NULL,\n				idx INTEGER NOT NULL,\n				data BLOB NOT NULL,\n				PRIMARY KEY (blob, idx),\n				FOREIGN KEY (blob) REFERENCES blob(id)\n			) STRICT, WITHOUT ROWID\n			"""
 		)
 
 		# we cache failures too, represented as a null doc (with shorter TTL)
 		# timestamps are unix timestamp ints, in seconds
 		self.con.execute(
-			"""
-			CREATE TABLE did_cache(
-				did TEXT PRIMARY KEY NOT NULL,
-				doc BLOB,
-				created_at INTEGER NOT NULL,
-				expires_at INTEGER NOT NULL
-			) STRICT, WITHOUT ROWID
-			"""
+			"""\n			CREATE TABLE did_cache(\n				did TEXT PRIMARY KEY NOT NULL,\n				doc BLOB,\n				created_at INTEGER NOT NULL,\n				expires_at INTEGER NOT NULL\n			) STRICT, WITHOUT ROWID\n			"""
 		)
 
 		# likewise, a null did represents a failed resolution
 		self.con.execute(
-			"""
-			CREATE TABLE handle_cache(
-				handle TEXT PRIMARY KEY NOT NULL,
-				did TEXT,
-				created_at INTEGER NOT NULL,
-				expires_at INTEGER NOT NULL
-			) STRICT, WITHOUT ROWID
-			"""
-		)
-
-		# this is only for the tokens *we* issue, dpop jti will be tracked separately
-		# there's no point remembering that an expired token was revoked, and we'll garbage-collect these periodically
-		self.con.execute(
-			"""
-			CREATE TABLE revoked_token(
-				did TEXT NOT NULL,
-				jti TEXT NOT NULL,
-				expires_at INTEGER NOT NULL,
-				PRIMARY KEY (did, jti)
-			) STRICT, WITHOUT ROWID
-			"""
+			"""\n			CREATE TABLE handle_cache(\n				handle TEXT PRIMARY KEY NOT NULL,\n				did TEXT,\n				created_at INTEGER NOT NULL,\n				expires_at INTEGER NOT NULL\n			) STRICT, WITHOUT ROWID\n			"""
 		)
 
 	def update_config(
@@ -341,18 +232,7 @@ class Database:
 			commit_bytes = cbrrr.encode_dag_cbor(initial_commit)
 			commit_cid = cbrrr.CID.cidv1_dag_cbor_sha256_32_from(commit_bytes)
 			self.con.execute(
-				"""
-				INSERT INTO user(
-					did,
-					handle,
-					prefs,
-					pw_hash,
-					signing_key,
-					head,
-					rev,
-					commit_bytes
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-				""",
+				"""\n				INSERT INTO user(\n					did,\n					handle,\n					prefs,\n					pw_hash,\n					signing_key,\n					head,\n					rev,\n					commit_bytes\n				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)\n				""",
 				(
 					did,
 					handle,
@@ -411,8 +291,7 @@ class Database:
 		return row[0]
 
 	def list_repos(
-		self,
-	) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
+		) -> List[Tuple[str, cbrrr.CID, str]]:  # TODO: pagination
 		return [
 			(did, cbrrr.CID(head), rev)
 			for did, head, rev in self.con.execute(
